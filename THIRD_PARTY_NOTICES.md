@@ -1,9 +1,12 @@
 # Third-party notices
 
-## LeagueAccounts button styling
+## LeagueAccounts integrations
 
 The button styling in static/lol-buttons.css adapts the League client-inspired button rules from
 [Tariolle/LeagueAccounts](https://github.com/Tariolle/LeagueAccounts), file ui/src/client-controls.css.
+
+The Riot login renderer in riot_renderer.js adapts its controlled Chromium DevTools flow from
+[Tariolle/LeagueAccounts](https://github.com/Tariolle/LeagueAccounts), file src/riot_renderer.js.
 
 Copyright (c) 2026 Florent
 

@@ -1,17 +1,18 @@
-"""Guarded Riot Client UI login. Credentials never leave the local machine."""
+"""Riot Client sign-in using its own login renderer and local session API."""
 from __future__ import annotations
 
+import json
 import os
+import socket
 import subprocess
 import time
-import ctypes
-from ctypes import wintypes
 from pathlib import Path
 from typing import Callable
+from urllib.parse import urlparse
 
 import httpx
 import psutil
-from pywinauto import Desktop
+import websocket
 
 
 class LoginFailure(RuntimeError):
@@ -19,21 +20,26 @@ class LoginFailure(RuntimeError):
 
 
 class LocalRiotApi:
-    def __init__(self, port: int, password: str):
+    def __init__(self, port: int, token: str):
         self.base = f"https://127.0.0.1:{port}"
-        self.password = password
+        self.token = token
 
     def request(self, method: str, path: str, **kwargs) -> httpx.Response:
-        with httpx.Client(verify=False, trust_env=False, timeout=3) as client:
-            return client.request(
-                method, self.base + path, auth=("riot", self.password), **kwargs
-            )
+        with httpx.Client(verify=False, trust_env=False, timeout=4) as client:
+            return client.request(method, self.base + path, auth=("riot", self.token), **kwargs)
 
     def ready(self) -> bool:
         try:
             return self.request("GET", "/help").is_success
         except httpx.HTTPError:
             return False
+
+    def session(self) -> dict | None:
+        try:
+            response = self.request("GET", "/player-session-lifecycle/v1/session")
+            return response.json() if response.status_code == 200 else None
+        except (httpx.HTTPError, ValueError):
+            return None
 
     def username(self) -> str | None:
         try:
@@ -42,8 +48,6 @@ class LocalRiotApi:
                 return None
             info = response.json().get("userInfo", {})
             if isinstance(info, str):
-                import json
-
                 info = json.loads(info)
             return str(info.get("username", "")).strip() or None
         except (httpx.HTTPError, ValueError, AttributeError):
@@ -51,21 +55,25 @@ class LocalRiotApi:
 
     def sign_out(self) -> bool:
         try:
-            help_response = self.request("GET", "/help")
-            functions = help_response.json().get("functions", {})
+            functions = self.request("GET", "/help").json().get("functions", {})
             if "DeletePlayerSessionLifecycleV1Session" not in functions:
                 return False
-            result = self.request("DELETE", "/player-session-lifecycle/v1/session")
-            return result.is_success
+            return self.request("DELETE", "/player-session-lifecycle/v1/session").is_success
         except (httpx.HTTPError, ValueError, AttributeError):
             return False
+
+    def string_value(self, path: str) -> str | None:
+        try:
+            response = self.request("GET", path)
+            value = response.json() if response.is_success else None
+            return value if isinstance(value, str) and value else None
+        except (httpx.HTTPError, ValueError):
+            return None
 
     def launch_league(self) -> bool:
         try:
             response = self.request(
-                "POST",
-                "/product-launcher/v1/products/league_of_legends/patchlines/live",
-                json={},
+                "POST", "/product-launcher/v1/products/league_of_legends/patchlines/live", json={}
             )
             return response.is_success or response.status_code == 423
         except httpx.HTTPError:
@@ -79,24 +87,343 @@ def _local_api() -> LocalRiotApi | None:
     lockfile = Path(local) / "Riot Games" / "Riot Client" / "Config" / "lockfile"
     try:
         parts = lockfile.read_text(encoding="utf-8").strip().split(":")
-        port, password = int(parts[2]), parts[3]
-        if 1 <= port <= 65535 and password:
-            return LocalRiotApi(port, password)
+        port, token = int(parts[2]), parts[3]
+        if 1 <= port <= 65535 and token:
+            return LocalRiotApi(port, token)
     except (OSError, ValueError, IndexError):
         pass
     return None
 
 
-def _client_process_running(client_path: Path) -> bool:
-    expected = str(client_path.resolve()).casefold()
-    for process in psutil.process_iter(("exe",)):
+def _inside(path: Path, root: Path) -> bool:
+    try:
+        path.resolve().relative_to(root.resolve())
+        return True
+    except (OSError, ValueError):
+        return False
+
+
+def _client_processes(root: Path) -> list[psutil.Process]:
+    matches = []
+    for process in psutil.process_iter(("name", "exe")):
         try:
-            executable = process.info.get("exe")
-            if executable and str(Path(executable).resolve()).casefold() == expected:
-                return True
+            name = (process.info.get("name") or "").casefold()
+            exe = process.info.get("exe")
+            if name in {"riotclientservices.exe", "riot client.exe"} and exe and _inside(Path(exe), root):
+                matches.append(process)
         except (psutil.Error, OSError):
             continue
-    return False
+    return matches
+
+
+def _service_args(root: Path) -> list[str]:
+    kept: list[str] = []
+    for process in _client_processes(root):
+        try:
+            if (process.info.get("name") or "").casefold() != "riotclientservices.exe":
+                continue
+            for arg in process.cmdline()[1:]:
+                if arg.startswith("--client-config-url=") and arg not in kept:
+                    kept.append(arg)
+        except (psutil.Error, OSError):
+            continue
+    return kept
+
+
+def _quiet_popen(args: list[str], cwd: Path) -> subprocess.Popen:
+    options = {"stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL,
+               "stderr": subprocess.DEVNULL, "close_fds": True}
+    if os.name == "nt":
+        options["creationflags"] = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+    return subprocess.Popen(args, cwd=str(cwd), **options)
+
+
+def _stop_client(root: Path) -> None:
+    deadline = time.monotonic() + 30
+    for _ in range(4):
+        processes = _client_processes(root)
+        if not processes:
+            return
+        for process in processes:
+            try:
+                subprocess.run(
+                    ["taskkill.exe", "/F", "/T", "/PID", str(process.pid)],
+                    stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL, timeout=10, check=False,
+                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                )
+            except (OSError, subprocess.TimeoutExpired):
+                pass
+        time.sleep(0.5)
+        if time.monotonic() >= deadline:
+            break
+    if _client_processes(root):
+        raise LoginFailure("No se pudo reiniciar Riot Client. Ciérralo y vuelve a intentarlo.")
+
+
+def _wait_api(timeout: float, progress: Callable[[str], None]) -> LocalRiotApi:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        api = _local_api()
+        if api and api.ready():
+            return api
+        progress("Esperando a que Riot Client prepare la sesión…")
+        time.sleep(0.5)
+    raise LoginFailure("Riot Client no inició su servicio de sesión dentro del tiempo esperado.")
+
+
+def _renderer_args(service: Path, api: LocalRiotApi) -> tuple[Path, list[str]]:
+    local = Path(os.environ.get("LOCALAPPDATA", ""))
+    data = local / "Riot Games" / "Riot Client"
+    lock = (data / "Config" / "lockfile").read_text(encoding="utf-8").strip().split(":")
+    if len(lock) != 5 or not lock[1].isdigit() or not lock[2].isdigit():
+        raise LoginFailure("Riot Client no publicó un lockfile válido para iniciar sesión.")
+    machine = api.string_value("/riotclient/machine-id")
+    host_session = api.string_value("/product-session/v1/host-session/id")
+    if not machine or not host_session:
+        raise LoginFailure("Riot Client todavía está preparando sus datos de sesión.")
+    root = service.parent
+    renderer = root / "RiotClientElectron" / "Riot Client.exe"
+    if not renderer.is_file():
+        raise LoginFailure("No se encontró el renderizador de Riot Client.")
+    args = [
+        f"--app-port={lock[2]}", f"--remoting-auth-token={lock[3]}", f"--app-pid={lock[1]}",
+        f"--app-root={root}", f"--user-data-root={data}",
+        f"--log-dir={data / 'Logs' / 'Riot Client UX Logs'}",
+        f"--machine-id={machine}", f"--session-id={host_session}",
+        "--crashpad-environment=prod", "--enable-hardware-acceleration",
+    ]
+    return renderer, args
+
+
+class Renderer:
+    def __init__(self, script_path: Path):
+        self.script = script_path.read_text(encoding="utf-8")
+        self.process: subprocess.Popen | None = None
+        self.socket = None
+        self.port = 0
+        self.sequence = 0
+
+    def start(self, renderer_path: Path, args: list[str]) -> None:
+        with socket.socket() as listener:
+            listener.bind(("127.0.0.1", 0))
+            self.port = listener.getsockname()[1]
+        debug_args = [*args, "--allow-chrome-dev-tools", "--remote-debugging-address=127.0.0.1",
+                      f"--remote-debugging-port={self.port}"]
+        self.process = _quiet_popen([str(renderer_path), *debug_args], renderer_path.parent)
+        deadline = time.monotonic() + 30
+        endpoint = None
+        with httpx.Client(trust_env=False, timeout=2) as client:
+            while time.monotonic() < deadline:
+                if self.process.poll() is not None:
+                    raise LoginFailure("El renderizador de Riot Client se cerró inesperadamente.")
+                try:
+                    response = client.get(f"http://127.0.0.1:{self.port}/json/list")
+                    if response.is_success:
+                        pages = response.json()
+                        target = next((p for p in pages if p.get("type") == "page"
+                                       and p.get("title") == "Riot Client"), None)
+                        if target:
+                            candidate = target.get("webSocketDebuggerUrl", "")
+                            parsed = urlparse(candidate)
+                            if (parsed.scheme == "ws" and parsed.hostname == "127.0.0.1"
+                                    and parsed.port == self.port and parsed.path.startswith("/devtools/page/")
+                                    and not parsed.username and not parsed.password):
+                                endpoint = candidate
+                                break
+                except (httpx.HTTPError, ValueError):
+                    pass
+                time.sleep(0.25)
+        if not endpoint:
+            raise LoginFailure("No se pudo conectar con el formulario interno de Riot Client.")
+        try:
+            self.socket = websocket.create_connection(
+                endpoint, timeout=2, suppress_origin=True,
+                http_no_proxy=["127.0.0.1", "localhost"], enable_multithread=True,
+            )
+            self.socket.settimeout(0.2)
+        except Exception as exc:
+            raise LoginFailure("No se pudo conectar con la ventana de acceso de Riot Client.") from exc
+        if self.evaluate(self.script) is not True:
+            raise LoginFailure("Riot Client no permitió preparar su formulario de acceso.")
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            if self.evaluate("globalThis.__leagueAccountsLogin.ready()") is True:
+                time.sleep(1.5)
+                return
+            time.sleep(0.2)
+        raise LoginFailure("El formulario de acceso de Riot Client no terminó de cargar.")
+
+    def evaluate(self, expression: str):
+        if self.socket is None:
+            raise LoginFailure("La conexión al formulario de Riot Client se cerró.")
+        self.sequence += 1
+        request_id = self.sequence
+        self.socket.send(json.dumps({"id": request_id, "method": "Runtime.evaluate",
+                                     "params": {"expression": expression, "returnByValue": True,
+                                                "awaitPromise": True}}))
+        deadline = time.monotonic() + 15
+        while time.monotonic() < deadline:
+            try:
+                payload = self.socket.recv()
+            except websocket.WebSocketTimeoutException:
+                continue
+            except Exception as exc:
+                raise LoginFailure("Se perdió la conexión con Riot Client.") from exc
+            try:
+                response = json.loads(payload)
+            except (TypeError, ValueError):
+                continue
+            if response.get("id") != request_id:
+                continue
+            if response.get("error") or response.get("result", {}).get("exceptionDetails"):
+                raise LoginFailure("Riot Client rechazó la operación del formulario.")
+            return response.get("result", {}).get("result", {}).get("value")
+        raise LoginFailure("Riot Client tardó demasiado en responder al formulario.")
+
+    def close(self) -> None:
+        if self.socket:
+            try:
+                self.socket.send(json.dumps({"id": 0, "method": "Browser.close"}))
+            except Exception:
+                pass
+            try:
+                self.socket.close()
+            except Exception:
+                pass
+            self.socket = None
+        if self.process:
+            try:
+                self.process.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                self.process.terminate()
+                try:
+                    self.process.wait(timeout=2)
+                except subprocess.TimeoutExpired:
+                    self.process.kill()
+            self.process = None
+
+
+def _restore_client(service: Path, args: list[str], renderer_path: Path | None,
+                    renderer_args: list[str] | None) -> None:
+    try:
+        if renderer_path and renderer_args:
+            _quiet_popen([str(renderer_path), *renderer_args], renderer_path.parent)
+        else:
+            _quiet_popen([str(service), *args], service.parent)
+    except OSError:
+        try:
+            _quiet_popen([str(service), *args], service.parent)
+        except OSError:
+            pass
+
+
+def run_login(client_path: Path, username: str, password: str,
+              report: Callable[[str, str], None]) -> None:
+    """Use Riot's own login renderer, verify the session and launch League."""
+    root = client_path.parent
+    report("client", "Comprobando Riot Client…")
+    was_running = bool(_client_processes(root))
+    service_args = _service_args(root)
+    api = _local_api()
+    started_headless = False
+    if not api or not api.ready():
+        report("client", "Iniciando el servicio de Riot Client…")
+        try:
+            _quiet_popen([str(client_path), "--headless", *service_args], root)
+            started_headless = True
+        except OSError as exc:
+            raise LoginFailure("No se pudo iniciar Riot Client.") from exc
+        try:
+            api = _wait_api(90, lambda message: report("client", message))
+        except LoginFailure:
+            _restore_client(client_path, service_args, None, None)
+            raise
+
+    current = api.username()
+    if current and current.casefold() == username.casefold():
+        report("launch", "La cuenta ya está iniciada. Abriendo League of Legends…")
+        if not api.launch_league():
+            raise LoginFailure("Riot Client no aceptó la orden de abrir League of Legends.")
+        return
+    if _league_is_running():
+        raise LoginFailure("Cierra League of Legends antes de cambiar a otra cuenta.")
+    if current:
+        report("signout", "Cerrando la sesión anterior de Riot…")
+        if not api.sign_out():
+            raise LoginFailure("Riot Client no permitió cerrar la sesión anterior.")
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline and api.username() is not None:
+            time.sleep(0.5)
+        if api.username() is not None:
+            raise LoginFailure("Riot Client no terminó de cerrar la sesión anterior.")
+
+    renderer = Renderer(Path(__file__).with_name("riot_renderer.js"))
+    renderer_path: Path | None = None
+    renderer_args: list[str] | None = None
+    stopped = started_headless
+    launched = False
+    try:
+        report("credentials", "Preparando el formulario seguro de Riot Client…")
+        if was_running or (not started_headless and _client_processes(root)):
+            stopped = True
+            _stop_client(root)
+        if not started_headless:
+            report("client", "Iniciando Riot Client en modo de acceso…")
+            try:
+                _quiet_popen([str(client_path), "--headless", *service_args], root)
+            except OSError as exc:
+                raise LoginFailure("No se pudo iniciar Riot Client en modo de acceso.") from exc
+        api = _wait_api(60, lambda message: report("client", message))
+        if api.username():
+            raise LoginFailure("Riot Client conservó otra sesión; inténtalo de nuevo.")
+        renderer_path, renderer_args = _renderer_args(client_path, api)
+        report("credentials", "Cargando el formulario nativo de Riot…")
+        renderer.start(renderer_path, renderer_args)
+        report("typing", "Introduciendo las credenciales guardadas…")
+        values = json.dumps([username, password], ensure_ascii=False)
+        filled = renderer.evaluate(f"globalThis.__leagueAccountsLogin.fill(...{values})")
+        values = ""
+        password = ""
+        if filled is not True:
+            raise LoginFailure("Riot Client no pudo validar el formulario para esta cuenta.")
+        if renderer.evaluate("globalThis.__leagueAccountsLogin.submit()") is not True:
+            raise LoginFailure("Riot Client no pudo enviar el formulario de acceso.")
+
+        report("verification", "Esperando la confirmación de Riot…")
+        deadline = time.monotonic() + 300
+        verification_shown = False
+        expected = username.casefold()
+        while time.monotonic() < deadline:
+            current_api = _local_api()
+            if not current_api or current_api.base != api.base:
+                raise LoginFailure("La sesión local de Riot cambió durante el acceso.")
+            current = current_api.username()
+            if current:
+                if current.casefold() != expected:
+                    raise LoginFailure("Riot inició una sesión distinta de la cuenta seleccionada.")
+                report("launch", "Riot confirmó la cuenta. Abriendo League of Legends…")
+                if not current_api.launch_league():
+                    raise LoginFailure("Riot confirmó el acceso, pero no aceptó abrir League of Legends.")
+                launched = True
+                return
+            auth_state = renderer.evaluate("globalThis.__leagueAccountsLogin.status()")
+            if auth_state in {"rejected", "changed"}:
+                raise LoginFailure("Riot rechazó las credenciales. Revísalas en la cuenta guardada.")
+            if auth_state == "rate_limited":
+                raise LoginFailure("Riot limitó temporalmente los intentos. Espera antes de volver a probar.")
+            if auth_state == "captcha_rejected":
+                raise LoginFailure("Riot pidió un CAPTCHA. Complétalo en Riot Client y vuelve a iniciar sesión.")
+            if auth_state == "verification" and not verification_shown:
+                renderer.evaluate("globalThis.__leagueAccountsLogin.showVerification()")
+                report("verification", "Riot requiere MFA o CAPTCHA. Complétalo en la ventana de Riot Client.")
+                verification_shown = True
+            time.sleep(0.3)
+        raise LoginFailure("Riot no confirmó el acceso a tiempo. Revisa la verificación en Riot Client.")
+    finally:
+        renderer.close()
+        if stopped and not launched:
+            _restore_client(client_path, service_args, renderer_path, renderer_args)
 
 
 def _league_is_running() -> bool:
@@ -108,223 +435,3 @@ def _league_is_running() -> bool:
         except psutil.Error:
             continue
     return False
-
-
-def _riot_install_executable(executable: str | None, services_path: Path) -> bool:
-    if not executable:
-        return False
-    image = Path(executable).resolve()
-    services = services_path.resolve()
-    root = services.parent
-    name = image.name.casefold()
-    if name == "riotclientux.exe":
-        return image.parent == root
-    if name == "riot client.exe":
-        return image.parent in (root, root / "RiotClientElectron")
-    return False
-
-
-def _find_login_form(services_path: Path):
-    for window in Desktop(backend="uia").windows(visible_only=True):
-        try:
-            pid = window.element_info.process_id
-            executable = psutil.Process(pid).exe()
-            if not _riot_install_executable(executable, services_path):
-                continue
-            edits = window.descendants(control_type="Edit")
-            password = next((item for item in edits if item.element_info.is_password), None)
-            username = next((item for item in edits if not item.element_info.is_password), None)
-            if username is not None and password is not None:
-                return window, username, password
-        except (psutil.Error, OSError, RuntimeError, AttributeError):
-            continue
-    return None
-
-
-def _focus_is_target(window, services_path: Path) -> bool:
-    try:
-        import ctypes
-
-        if int(ctypes.windll.user32.GetForegroundWindow()) != int(window.handle):
-            return False
-        process = psutil.Process(window.element_info.process_id)
-        return _riot_install_executable(process.exe(), services_path)
-    except (AttributeError, OSError, TypeError, ValueError):
-        return False
-
-
-class _KeyboardInput(ctypes.Structure):
-    _fields_ = [
-        ("virtual_key", wintypes.WORD),
-        ("scan_code", wintypes.WORD),
-        ("flags", wintypes.DWORD),
-        ("time", wintypes.DWORD),
-        ("extra", ctypes.c_void_p),
-    ]
-
-
-class _MouseInput(ctypes.Structure):
-    _fields_ = [
-        ("x", wintypes.LONG),
-        ("y", wintypes.LONG),
-        ("data", wintypes.DWORD),
-        ("flags", wintypes.DWORD),
-        ("time", wintypes.DWORD),
-        ("extra", ctypes.c_void_p),
-    ]
-
-
-class _InputUnion(ctypes.Union):
-    _fields_ = [("mouse", _MouseInput), ("keyboard", _KeyboardInput)]
-
-
-class _Input(ctypes.Structure):
-    _anonymous_ = ("value",)
-    _fields_ = [("type", wintypes.DWORD), ("value", _InputUnion)]
-
-
-def _send_key(window, services_path: Path, key: int, flags: int) -> None:
-    if not _focus_is_target(window, services_path):
-        raise LoginFailure("Riot Client perdió el foco; se detuvo el relleno por seguridad.")
-    event = _Input(type=1, keyboard=_KeyboardInput(key, 0, flags, 0, None))
-    if ctypes.windll.user32.SendInput(1, ctypes.byref(event), ctypes.sizeof(_Input)) != 1:
-        raise LoginFailure("Windows rechazó la entrada de teclado dirigida a Riot Client.")
-
-
-def _send_virtual_key(window, services_path: Path, key: int) -> None:
-    _send_key(window, services_path, key, 0)
-    _send_key(window, services_path, key, 0x0002)
-
-
-def _replace_field_text(window, field, value: str, services_path: Path) -> None:
-    field.click_input()
-    if not _focus_is_target(window, services_path):
-        raise LoginFailure("Riot Client perdió el foco; se detuvo el relleno por seguridad.")
-    # Select and clear the field, then send Unicode input directly to the
-    # verified Riot window. Credentials are never copied to the clipboard.
-    _send_key(window, services_path, 0x11, 0)  # Ctrl down
-    _send_key(window, services_path, 0x41, 0)  # A down
-    _send_key(window, services_path, 0x41, 0x0002)
-    _send_key(window, services_path, 0x11, 0x0002)
-    _send_virtual_key(window, services_path, 0x08)  # Backspace
-    encoded = value.encode("utf-16-le")
-    for index in range(0, len(encoded), 2):
-        code_unit = int.from_bytes(encoded[index:index + 2], "little")
-        # Set the scan code after constructing the event; VK_PACKET is used
-        # for Unicode text and preserves punctuation in passwords.
-        event = _Input(type=1, keyboard=_KeyboardInput(0, code_unit, 0x0004, 0, None))
-        if not _focus_is_target(window, services_path):
-            raise LoginFailure("Riot Client perdió el foco; se detuvo el relleno por seguridad.")
-        if ctypes.windll.user32.SendInput(1, ctypes.byref(event), ctypes.sizeof(_Input)) != 1:
-            raise LoginFailure("Windows rechazó la entrada de teclado dirigida a Riot Client.")
-        release = _Input(type=1, keyboard=_KeyboardInput(0, code_unit, 0x0004 | 0x0002, 0, None))
-        if ctypes.windll.user32.SendInput(1, ctypes.byref(release), ctypes.sizeof(_Input)) != 1:
-            raise LoginFailure("Windows rechazó la entrada de teclado dirigida a Riot Client.")
-
-
-def _fill_login_form(
-    window, username_field, password_field, username: str, password: str, services_path: Path
-) -> None:
-    try:
-        window.set_focus()
-        if not _focus_is_target(window, services_path):
-            raise LoginFailure("Windows no permitió enfocar Riot Client; no se escribieron las credenciales.")
-        _replace_field_text(window, username_field, username, services_path)
-        _replace_field_text(window, password_field, password, services_path)
-        buttons = window.descendants(control_type="Button")
-        submit = next((
-            button for button in buttons
-            if any(term in (button.element_info.name or "").casefold()
-                   for term in ("sign in", "log in", "iniciar sesión", "acceder"))
-        ), None)
-        if submit is not None:
-            submit.click_input()
-        else:
-            password_field.set_focus()
-            if not _focus_is_target(window, services_path):
-                raise LoginFailure("Riot Client perdió el foco; no se envió el formulario.")
-            _send_virtual_key(window, services_path, 0x0D)
-    except LoginFailure:
-        raise
-    except Exception as exc:
-        raise LoginFailure(
-            "No se pudo rellenar el formulario de Riot Client. Comprueba que esté mostrando el inicio de sesión."
-        ) from exc
-
-
-def run_login(
-    client_path: Path,
-    username: str,
-    password: str,
-    report: Callable[[str, str], None],
-) -> None:
-    """Sign in through Riot's visible login form and ask the client to start LoL."""
-    report("client", "Comprobando Riot Client…")
-    if not _client_process_running(client_path):
-        try:
-            subprocess.Popen([str(client_path)], cwd=str(client_path.parent), close_fds=True)
-        except OSError as exc:
-            raise LoginFailure("No se pudo abrir Riot Client.") from exc
-
-    api = None
-    deadline = time.monotonic() + 90
-    while time.monotonic() < deadline:
-        api = _local_api()
-        if api and api.ready():
-            break
-        report("client", "Esperando a que Riot Client termine de iniciar…")
-        time.sleep(1)
-    if api is None or not api.ready():
-        raise LoginFailure("Riot Client no inició su servicio local dentro del tiempo esperado.")
-
-    current = api.username()
-    if current and current.casefold() == username.casefold():
-        report("launch", "La cuenta ya está iniciada. Abriendo League of Legends…")
-        if not api.launch_league():
-            raise LoginFailure("Riot Client no aceptó la orden de abrir League of Legends.")
-        return
-
-    if current:
-        if _league_is_running():
-            raise LoginFailure("Cierra League of Legends antes de cambiar a otra cuenta.")
-        report("signout", "Cambiando la sesión actual de Riot…")
-        if not api.sign_out():
-            raise LoginFailure("Riot Client no permitió cerrar la sesión actual. Ciérrala desde el cliente e inténtalo otra vez.")
-        signout_deadline = time.monotonic() + 30
-        while time.monotonic() < signout_deadline and api.username() is not None:
-            time.sleep(0.5)
-        if api.username() is not None:
-            raise LoginFailure("Riot Client no terminó de cerrar la sesión anterior.")
-
-    report("credentials", "Esperando el formulario de acceso de Riot Client…")
-    form = None
-    form_deadline = time.monotonic() + 90
-    while time.monotonic() < form_deadline:
-        form = _find_login_form(client_path)
-        if form:
-            break
-        time.sleep(0.7)
-    if not form:
-        raise LoginFailure(
-            "No se detectó el formulario de Riot Client. Si aparece una verificación, complétala en el cliente y vuelve a intentar."
-        )
-
-    report("typing", "Escribiendo las credenciales guardadas en Riot Client…")
-    window, username_field, password_field = form
-    expected_username = username.casefold()
-    _fill_login_form(window, username_field, password_field, username, password, client_path)
-    username = password = ""
-
-    report("verification", "Esperando la respuesta de Riot. Si solicita MFA o CAPTCHA, complétalo en Riot Client…")
-    auth_deadline = time.monotonic() + 300
-    while time.monotonic() < auth_deadline:
-        current = api.username()
-        if current:
-            if current.casefold() != expected_username:
-                raise LoginFailure("Riot inició una sesión distinta de la cuenta seleccionada.")
-            report("launch", "Riot confirmó la sesión. Abriendo League of Legends…")
-            if not api.launch_league():
-                raise LoginFailure("Riot inició sesión, pero no aceptó la orden de abrir League of Legends.")
-            return
-        time.sleep(1)
-    raise LoginFailure("Riot no confirmó el inicio de sesión dentro del tiempo esperado.")

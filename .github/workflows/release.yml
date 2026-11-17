@@ -25,7 +25,7 @@ jobs:
         run: |
           # PyInstaller may otherwise collect unrelated ICU DLLs from Poppler in the runner PATH.
           $env:PATH = (($env:PATH -split ';') | Where-Object { $_ -notmatch '(?i)\\poppler\\Library\\bin' }) -join ';'
-          poetry run pyinstaller --noconfirm --clean --windowed --onedir --name LoLAccounts --icon assets/yuumi.ico --add-data "static;static" --add-data "assets;assets" --collect-all keyring --collect-all pywinauto --collect-all psutil main.py
+          poetry run pyinstaller --noconfirm --clean --windowed --onedir --name LoLAccounts --icon assets/yuumi.ico --add-data "static;static" --add-data "assets;assets" --add-data "riot_renderer.js;." --collect-all keyring --collect-all psutil --collect-all websocket main.py
           Copy-Item README.md dist/LoLAccounts/README.txt
           Copy-Item THIRD_PARTY_NOTICES.md dist/LoLAccounts/THIRD_PARTY_NOTICES.txt
           Copy-Item .env.example dist/LoLAccounts/.env.example
