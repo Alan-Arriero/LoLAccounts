@@ -15,7 +15,7 @@ import httpx
 
 OWNER = "Alan-Arriero"
 REPO = "LoLAccounts"
-CURRENT_VERSION = "0.2.13"
+CURRENT_VERSION = "0.2.14"
 API = f"https://api.github.com/repos/{OWNER}/{REPO}/releases/latest"
 ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 _lock = threading.Lock()

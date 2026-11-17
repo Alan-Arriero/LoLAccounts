@@ -7,3 +7,28 @@
 .summoner-icon{overflow:hidden;position:relative}.summoner-icon img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;clip-path:inherit}.card-actions{display:flex;align-items:center;gap:7px}.login-btn{font-size:8px;letter-spacing:.45px;padding:6px 8px;border:1px solid #56f5ec60;background:#56f5ec0a;color:var(--cyan);cursor:pointer;border-radius:2px;white-space:nowrap}.login-btn:hover{background:#56f5ec1c;box-shadow:0 0 12px #56f5ec1c}.account-card .card-footer{gap:8px}.account-card .win-rate{white-space:nowrap}.text-field[type=password]{letter-spacing:1px}
 
 .rank-progress{margin-top:6px;padding:0 1px}.rank-progress-label{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px;font-size:8px;color:#d5e4f3}.rank-progress-label span{white-space:nowrap;font-weight:700;color:var(--cyan);letter-spacing:.4px}.rank-progress-label small{font-size:7px;color:#8290a7;text-align:right;letter-spacing:.35px}.rank-progress-track{height:5px;overflow:hidden;background:#ffffff0c;border:1px solid #9be7ec24;border-radius:4px}.rank-progress-track span{display:block;height:100%;min-width:0;background:linear-gradient(90deg,#45c9e4,#70ffe1);box-shadow:0 0 10px #56f5ec70;border-radius:4px;transition:width .35s ease}
+
+/* Account cards: larger Riot identity, profile icon on the right, and clearer rank. */
+.account-card{min-height:270px;padding:18px 18px 15px}
+.account-card .card-top{display:grid;grid-template-columns:minmax(0,1fr) 72px 22px;align-items:center;gap:10px;min-height:78px;position:relative;z-index:2}
+.account-identity{min-width:0;align-self:center}
+.account-id-line{display:flex;align-items:baseline;gap:4px;min-width:0;white-space:nowrap;overflow:hidden}
+.account-card .account-name{min-width:0;font-size:22px;line-height:1.05;font-weight:700;letter-spacing:.15px;margin:0;overflow:hidden;text-overflow:ellipsis}
+.account-card .account-tag{flex:none;font-size:16px;line-height:1.1;color:#aebbd0;letter-spacing:.25px}
+.profile-icon{display:block;width:70px;height:70px;object-fit:cover;border:1px solid #72f5dd9c;border-radius:7px;background:linear-gradient(140deg,#56f5ec20,#ed58ff19);box-shadow:0 0 18px #56f5ec22}
+.profile-icon-empty{background:linear-gradient(140deg,#56f5ec12,#ed58ff12);box-shadow:inset 0 0 20px #56f5ec0c}
+.account-card .card-menu{grid-column:3;grid-row:1;align-self:start;justify-self:end;z-index:3;padding:1px 0 0 3px}
+.account-card .account-menu{top:25px;right:0;z-index:5}
+.copy-id,.link-riot-id{display:inline-flex;align-items:center;justify-content:center;margin-top:9px;min-height:27px;padding:0 9px;border:1px solid #56f5ec55;border-radius:2px;background:#56f5ec0a;color:#8ffaf0;font:700 8px var(--font);letter-spacing:.65px;cursor:pointer;white-space:nowrap}
+.copy-id:hover,.link-riot-id:hover{border-color:#56f5ecaa;background:#56f5ec18;box-shadow:0 0 12px #56f5ec1c}
+.account-card .account-label{position:static;display:block;width:max-content;max-width:100%;margin-top:7px;font-size:8px;letter-spacing:.5px;overflow:hidden;text-overflow:ellipsis}
+.account-card .rank-row{min-height:72px;gap:13px;margin-top:13px;padding-top:12px}
+.account-card .rank-emblem-image{width:62px;height:62px}
+.account-card .rank-text b{font-size:21px;line-height:1.05;letter-spacing:.55px}
+.account-card .rank-text small{font-size:9px;letter-spacing:.25px}
+.account-card .rank-progress{margin-top:8px}
+.account-card .rank-progress-label{font-size:9px}
+.account-card .rank-progress-label small{font-size:8px}
+.account-card .rank-progress-track{height:6px}
+.account-card .card-footer{margin-top:12px}
+@media(max-width:430px){.account-card .card-top{grid-template-columns:minmax(0,1fr) 60px 18px;gap:7px}.profile-icon{width:58px;height:58px}.account-card .account-name{font-size:19px}.account-card .account-tag{font-size:14px}.account-card .rank-emblem-image{width:54px;height:54px}.account-card .rank-text b{font-size:18px}}
