@@ -226,6 +226,41 @@ def _stop_client(root: Path) -> None:
         raise LoginFailure("No se pudo reiniciar Riot Client. Ciérralo y vuelve a intentarlo.")
 
 
+def _league_processes() -> list[psutil.Process]:
+    names = {"leagueclient.exe", "leagueclientux.exe", "league of legends.exe"}
+    processes = []
+    for process in psutil.process_iter(("name",)):
+        try:
+            if (process.info.get("name") or "").casefold() in names:
+                processes.append(process)
+        except psutil.Error:
+            continue
+    return processes
+
+
+def _stop_league(report: Callable[[str, str], None]) -> None:
+    """Close League's client and game before switching the Riot account."""
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline:
+        processes = _league_processes()
+        if not processes:
+            return
+        report("signout", "Cerrando League of Legends antes de cambiar de cuenta…")
+        for process in processes:
+            try:
+                subprocess.run(
+                    ["taskkill.exe", "/F", "/T", "/PID", str(process.pid)],
+                    stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL, timeout=10, check=False,
+                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                )
+            except (OSError, subprocess.TimeoutExpired):
+                pass
+        time.sleep(0.5)
+    if _league_processes():
+        raise LoginFailure("No se pudo cerrar League of Legends. Ciérralo y vuelve a intentarlo.")
+
+
 def _wait_api(timeout: float, progress: Callable[[str], None]) -> LocalRiotApi:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
@@ -484,11 +519,15 @@ def run_login(client_path: Path, username: str, password: str,
 
     current = api.username()
     if current and current.casefold() == username.casefold():
+        game = api.game_session() or {}
+        game_user = str(game.get("username", "")).strip()
+        if _league_is_running() and game_user and game_user.casefold() != username.casefold():
+            _stop_league(report)
         report("launch", "La cuenta ya está iniciada. Abriendo League of Legends…")
         _launch_and_wait(api, username, report)
         return
     if _league_is_running():
-        raise LoginFailure("Cierra League of Legends antes de cambiar a otra cuenta.")
+        _stop_league(report)
     if current:
         report("signout", "Cerrando la sesión anterior de Riot…")
         if not api.sign_out():
@@ -567,11 +606,4 @@ def run_login(client_path: Path, username: str, password: str,
 
 
 def _league_is_running() -> bool:
-    names = {"leagueclient.exe", "leagueclientux.exe", "league of legends.exe"}
-    for process in psutil.process_iter(("name",)):
-        try:
-            if (process.info.get("name") or "").casefold() in names:
-                return True
-        except psutil.Error:
-            continue
-    return False
+    return bool(_league_processes())
