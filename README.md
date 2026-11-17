@@ -2,6 +2,8 @@
 
 Aplicación de escritorio local para gestionar cuentas de League of Legends en EUW. Consulta los Riot IDs y rangos con la API oficial de Riot, mantiene el perfil activo local y permite filtrar la colección por elo, nombre, etiqueta o porcentaje de victorias.
 
+Los emblemas Iron–Challenger proceden del paquete oficial [Ranked Emblems Latest de Riot](https://static.developer.riotgames.com/docs/lol/ranked-emblems-latest.zip). La imagen de Yuumi del icono y la interfaz parte de images.jpg.
+
 ## Inicio de escritorio
 
 Instala Poetry y abre launch.vbs para iniciar Rift Vault sin una consola visible. Para usar el lanzador de desarrollo launch.bat o PowerShell:
