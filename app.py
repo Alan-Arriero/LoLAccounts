@@ -44,7 +44,7 @@ def init_db() -> None:
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             game_name TEXT NOT NULL,
             tag_line TEXT NOT NULL,
-            puuid TEXT NOT NULL UNIQUE,
+            puuid TEXT UNIQUE,
             tier TEXT, rank TEXT, league_points INTEGER,
             wins INTEGER, losses INTEGER,
             label TEXT NOT NULL DEFAULT '',
@@ -57,6 +57,29 @@ def init_db() -> None:
         for column, sql_type in (("profile_icon_id", "INTEGER"), ("icon_version", "TEXT")):
             if column not in columns:
                 db.execute(f"ALTER TABLE accounts ADD COLUMN {column} {sql_type}")
+        puuid_column = next(row for row in db.execute("PRAGMA table_info(accounts)") if row["name"] == "puuid")
+        if puuid_column["notnull"]:
+            db.execute("ALTER TABLE accounts RENAME TO accounts_legacy")
+            db.execute("""CREATE TABLE accounts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                game_name TEXT NOT NULL,
+                tag_line TEXT NOT NULL,
+                puuid TEXT UNIQUE,
+                tier TEXT, rank TEXT, league_points INTEGER,
+                wins INTEGER, losses INTEGER,
+                label TEXT NOT NULL DEFAULT '',
+                is_active INTEGER NOT NULL DEFAULT 0,
+                profile_icon_id INTEGER,
+                icon_version TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )""")
+            db.execute("""INSERT INTO accounts
+                (id, game_name, tag_line, puuid, tier, rank, league_points, wins, losses,
+                 label, is_active, profile_icon_id, icon_version, created_at)
+                SELECT id, game_name, tag_line, puuid, tier, rank, league_points, wins, losses,
+                       label, is_active, profile_icon_id, icon_version, created_at
+                FROM accounts_legacy""")
+            db.execute("DROP TABLE accounts_legacy")
 
 
 @asynccontextmanager
@@ -93,15 +116,17 @@ async def request_app_close():
 
 
 class AccountCreate(BaseModel):
-    game_name: str = Field(min_length=1, max_length=80)
-    tag_line: str = Field(min_length=1, max_length=16)
+    game_name: str | None = Field(default=None, max_length=80)
+    tag_line: str | None = Field(default=None, max_length=16)
     riot_username: str = Field(min_length=1, max_length=160)
     riot_password: str = Field(min_length=1, max_length=256)
     label: str = Field(default="", max_length=40)
 
 
 class AccountUpdate(BaseModel):
-    label: str = Field(default="", max_length=40)
+    label: str | None = Field(default=None, max_length=40)
+    game_name: str | None = Field(default=None, max_length=80)
+    tag_line: str | None = Field(default=None, max_length=16)
 
 
 async def riot_get(url: str) -> dict | list:
@@ -140,6 +165,7 @@ async def get_ddragon_version() -> str:
 def public(row: sqlite3.Row) -> dict:
     account = {key: row[key] for key in row.keys() if key != "puuid"}
     account["has_credentials"] = bool(keyring.get_password(KEYRING_SERVICE, str(row["id"])))
+    account["has_riot_id"] = bool(row["puuid"] and row["game_name"] and row["tag_line"])
     return account
 
 
@@ -174,35 +200,45 @@ async def list_accounts():
 
 @app.post("/api/accounts", status_code=201)
 async def add_account(payload: AccountCreate):
-    game_name, tag_line = payload.game_name.strip(), payload.tag_line.strip()
-    if not game_name or not tag_line or "#" in game_name:
-        raise HTTPException(422, "Escribe el Riot ID como Nombre y Tag por separado")
-    encoded_name, encoded_tag = quote(game_name, safe=""), quote(tag_line, safe="")
-    account = await riot_get(
-        f"https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{encoded_name}/{encoded_tag}"
-    )
-    puuid = account["puuid"]
-    ranked = await riot_get(
-        f"https://euw1.api.riotgames.com/lol/league/v4/entries/by-puuid/{quote(puuid, safe='')}"
-    )
+    game_name = (payload.game_name or "").strip()
+    tag_line = (payload.tag_line or "").strip()
+    if bool(game_name) != bool(tag_line) or "#" in game_name:
+        raise HTTPException(422, "Completa ambos campos del Riot ID o deja ambos vacíos")
+    account: dict = {}
+    puuid = None
+    ranked: list = []
     profile_icon_id = None
-    try:
-        summoner = await riot_get(
-            f"https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{quote(puuid, safe='')}"
+    icon_version = None
+    selected: dict = {}
+    display_name = "Cuenta sin Riot ID"
+    if game_name and tag_line:
+        encoded_name, encoded_tag = quote(game_name, safe=""), quote(tag_line, safe="")
+        account = await riot_get(
+            f"https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{encoded_name}/{encoded_tag}"
         )
-        profile_icon_id = summoner.get("profileIconId")
-    except HTTPException:
-        pass
-    icon_version = await get_ddragon_version()
-    solo = next((entry for entry in ranked if entry.get("queueType") == "RANKED_SOLO_5x5"), None)
-    flex = next((entry for entry in ranked if entry.get("queueType") == "RANKED_FLEX_SR"), None)
-    selected = solo or flex or {}
+        puuid = account["puuid"]
+        ranked = await riot_get(
+            f"https://euw1.api.riotgames.com/lol/league/v4/entries/by-puuid/{quote(puuid, safe='')}"
+        )
+        try:
+            summoner = await riot_get(
+                f"https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{quote(puuid, safe='')}"
+            )
+            profile_icon_id = summoner.get("profileIconId")
+        except HTTPException:
+            pass
+        icon_version = await get_ddragon_version()
+        display_name = account.get("gameName", game_name)
+        tag_line = account.get("tagLine", tag_line)
+        solo = next((entry for entry in ranked if entry.get("queueType") == "RANKED_SOLO_5x5"), None)
+        flex = next((entry for entry in ranked if entry.get("queueType") == "RANKED_FLEX_SR"), None)
+        selected = solo or flex or {}
     with connect() as db:
         try:
             cursor = db.execute("""INSERT INTO accounts
                 (game_name, tag_line, puuid, tier, rank, league_points, wins, losses, label, profile_icon_id, icon_version)
                 VALUES(?,?,?,?,?,?,?,?,?,?,?)""", (
-                account.get("gameName", game_name), account.get("tagLine", tag_line), puuid,
+                display_name, tag_line, puuid,
                 selected.get("tier", "UNRANKED"), selected.get("rank", ""),
                 selected.get("leaguePoints", 0), selected.get("wins", 0), selected.get("losses", 0),
                 payload.label.strip(), profile_icon_id, icon_version))
@@ -226,10 +262,56 @@ async def add_account(payload: AccountCreate):
 @app.patch("/api/accounts/{account_id}")
 async def update_account(account_id: int, payload: AccountUpdate):
     with connect() as db:
-        cursor = db.execute("UPDATE accounts SET label=? WHERE id=?", (payload.label.strip(), account_id))
-        if not cursor.rowcount:
+        if not db.execute("SELECT 1 FROM accounts WHERE id=?", (account_id,)).fetchone():
             raise HTTPException(404, "Cuenta no encontrada")
-        return public(db.execute("SELECT * FROM accounts WHERE id=?", (account_id,)).fetchone())
+    if payload.game_name is not None or payload.tag_line is not None:
+        game_name = (payload.game_name or "").strip()
+        tag_line = (payload.tag_line or "").strip()
+        if not game_name or not tag_line or "#" in game_name:
+            raise HTTPException(422, "Completa el Riot ID y el tag por separado")
+        account = await riot_get(
+            "https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/"
+            f"{quote(game_name, safe='')}/{quote(tag_line, safe='')}"
+        )
+        puuid = account["puuid"]
+        ranked = await riot_get(
+            f"https://euw1.api.riotgames.com/lol/league/v4/entries/by-puuid/{quote(puuid, safe='')}"
+        )
+        try:
+            summoner = await riot_get(
+                f"https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{quote(puuid, safe='')}"
+            )
+            profile_icon_id = summoner.get("profileIconId")
+        except HTTPException:
+            profile_icon_id = None
+        icon_version = await get_ddragon_version()
+        selected = next((entry for entry in ranked if entry.get("queueType") == "RANKED_SOLO_5x5"), None)
+        selected = selected or next((entry for entry in ranked if entry.get("queueType") == "RANKED_FLEX_SR"), None) or {}
+        with connect() as db:
+            try:
+                db.execute("""UPDATE accounts SET game_name=?, tag_line=?, puuid=?, tier=?, rank=?,
+                    league_points=?, wins=?, losses=?, profile_icon_id=?, icon_version=?,
+                    label=COALESCE(?, label) WHERE id=?""", (
+                    account.get("gameName", game_name), account.get("tagLine", tag_line), puuid,
+                    selected.get("tier", "UNRANKED"), selected.get("rank", ""),
+                    selected.get("leaguePoints", 0), selected.get("wins", 0), selected.get("losses", 0),
+                    profile_icon_id, icon_version,
+                    payload.label.strip() if payload.label is not None else None, account_id))
+            except sqlite3.IntegrityError as exc:
+                raise HTTPException(409, "Esta cuenta de Riot ya está en tu colección") from exc
+            row = db.execute("SELECT * FROM accounts WHERE id=?", (account_id,)).fetchone()
+            if not row:
+                raise HTTPException(404, "Cuenta no encontrada")
+            return public(row)
+    with connect() as db:
+        if payload.label is not None:
+            cursor = db.execute("UPDATE accounts SET label=? WHERE id=?", (payload.label.strip(), account_id))
+            if not cursor.rowcount:
+                raise HTTPException(404, "Cuenta no encontrada")
+        row = db.execute("SELECT * FROM accounts WHERE id=?", (account_id,)).fetchone()
+        if not row:
+            raise HTTPException(404, "Cuenta no encontrada")
+        return public(row)
 
 
 @app.post("/api/accounts/{account_id}/refresh")
@@ -238,6 +320,8 @@ async def refresh_account(account_id: int):
         row = db.execute("SELECT * FROM accounts WHERE id=?", (account_id,)).fetchone()
     if not row:
         raise HTTPException(404, "Cuenta no encontrada")
+    if not row["puuid"]:
+        raise HTTPException(409, "Añade el Riot ID y tag antes de actualizar el rango")
     ranked = await riot_get(
         f"https://euw1.api.riotgames.com/lol/league/v4/entries/by-puuid/{quote(row['puuid'], safe='')}"
     )
