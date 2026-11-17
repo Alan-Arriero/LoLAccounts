@@ -41,7 +41,7 @@ class LocalRiotApi:
         except (httpx.HTTPError, ValueError):
             return None
 
-    def username(self) -> str | None:
+    def userinfo(self) -> dict | None:
         try:
             response = self.request("GET", "/rso-auth/v1/authorization/userinfo")
             if response.status_code != 200:
@@ -49,9 +49,55 @@ class LocalRiotApi:
             info = response.json().get("userInfo", {})
             if isinstance(info, str):
                 info = json.loads(info)
-            return str(info.get("username", "")).strip() or None
+            return info if isinstance(info, dict) else None
         except (httpx.HTTPError, ValueError, AttributeError):
             return None
+
+    def username(self) -> str | None:
+        info = self.userinfo()
+        return str(info.get("username", "")).strip() or None if info else None
+
+    def follow_league_region(self, timeout: float = 10) -> None:
+        """Match Riot Client's selected region to the signed-in account."""
+        info = self.userinfo()
+        try:
+            current_response = self.request("GET", "/riotclient/region-locale")
+            regions_response = self.request("GET", "/data-store/v1/system-settings/region_data")
+            current = current_response.json() if current_response.status_code == 200 else None
+            regions = regions_response.json() if regions_response.status_code == 200 else None
+        except (httpx.HTTPError, ValueError):
+            return
+        if not info or not isinstance(current, dict) or not isinstance(regions, dict):
+            return
+        account_regions = [info.get("lol"), *(info.get("lol_region") or [])]
+        platforms = [entry.get("cpid") for entry in account_regions
+                     if isinstance(entry, dict) and entry.get("active") is not False and entry.get("cpid")]
+        if not platforms:
+            return
+        current_region = str(current.get("region", ""))
+        region_info = regions.get(current_region, {})
+        if isinstance(region_info, dict) and region_info.get("rso_platform_id") in platforms:
+            return
+        platform = platforms[0]
+        if platform in regions:
+            target_region = platform
+        else:
+            target_region = next((name for name, data in regions.items()
+                                  if isinstance(data, dict) and data.get("rso_platform_id") == platform), "")
+        if not target_region or target_region == current_region:
+            return
+        self.request("PUT", "/riotclient/region-locale",
+                     json={"region": target_region, "locale": current.get("locale", "en_GB")})
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            try:
+                response = self.request("GET", "/riotclient/region-locale")
+                if response.status_code == 200 and response.json().get("region") == target_region:
+                    return
+            except (httpx.HTTPError, ValueError):
+                pass
+            time.sleep(0.5)
+        raise LoginFailure("Riot Client no aplicó la región de la cuenta antes de abrir League.")
 
     def sign_out(self) -> bool:
         try:
@@ -70,14 +116,33 @@ class LocalRiotApi:
         except (httpx.HTTPError, ValueError):
             return None
 
-    def launch_league(self) -> bool:
+    def launch_league(self) -> int | None:
         try:
             response = self.request(
                 "POST", "/product-launcher/v1/products/league_of_legends/patchlines/live", json={}
             )
-            return response.is_success or response.status_code == 423
+            return response.status_code
+        except httpx.TimeoutException:
+            # Riot can keep processing the launch after its request times out.
+            return None
         except httpx.HTTPError:
-            return False
+            return -1
+
+    def game_session(self) -> dict | None:
+        try:
+            response = self.request("GET", "/lol-login/v1/session")
+            return response.json() if response.status_code == 200 else None
+        except (httpx.HTTPError, ValueError):
+            return None
+
+    def patch_state(self) -> dict | None:
+        try:
+            response = self.request(
+                "GET", "/patch-proxy/v2/patch-states/products/league_of_legends/patchlines/live"
+            )
+            return response.json() if response.status_code == 200 else None
+        except (httpx.HTTPError, ValueError):
+            return None
 
 
 def _local_api() -> LocalRiotApi | None:
@@ -304,6 +369,83 @@ class Renderer:
             self.process = None
 
 
+def _launch_and_wait(api: LocalRiotApi, username: str,
+                     report: Callable[[str, str], None]) -> None:
+    """Retry launch while Riot patches, then confirm the game client opened."""
+    deadline = time.monotonic() + 1800
+    verified_user = api.username()
+    if verified_user and verified_user.casefold() != username.casefold():
+        raise LoginFailure("La sesión de Riot no coincide con la cuenta seleccionada.")
+    api.follow_league_region()
+    next_request = 0.0
+    request_count = 0
+    game_process_seen: float | None = None
+    last_message = "Riot aceptó la sesión; esperando a que League of Legends se abra…"
+    while time.monotonic() < deadline:
+        current_api = _local_api()
+        if current_api and current_api.ready():
+            api = current_api
+        current_user = api.username()
+        if current_user and current_user.casefold() != username.casefold():
+            raise LoginFailure("La sesión de Riot cambió a otra cuenta antes de abrir League of Legends.")
+
+        game = api.game_session() or {}
+        game_user = str(game.get("username", "")).strip()
+        if game_user and game_user.casefold() != username.casefold():
+            raise LoginFailure("League of Legends abrió con una cuenta distinta de la seleccionada.")
+        running = _league_is_running()
+        if running:
+            if game_user and str(game.get("state", "")).upper() == "SUCCEEDED":
+                report("launch", "League of Legends está abierto con la cuenta seleccionada.")
+                return
+            if game_process_seen is None:
+                game_process_seen = time.monotonic()
+            # Riot's game-session API can appear a few seconds after the process.
+            if current_user and current_user.casefold() == username.casefold() and time.monotonic() - game_process_seen >= 30:
+                report("launch", "El cliente de League of Legends está abierto con la cuenta seleccionada.")
+                return
+        else:
+            game_process_seen = None
+
+        patch = api.patch_state() or {}
+        state = str(patch.get("state", ""))
+        progress = patch.get("progress") if isinstance(patch.get("progress"), dict) else {}
+        percent = progress.get("overallProgress")
+        active_update = state in {"Updating", "Repairing", "OutOfDate", "NeedsRepair"}
+        if active_update:
+            if isinstance(percent, (int, float)):
+                last_message = f"Riot está actualizando League of Legends ({max(0, min(100, percent)):.0f}%)."
+            else:
+                last_message = "Riot está descargando o reparando League of Legends…"
+        else:
+            last_message = "Riot aceptó la sesión; esperando a que League of Legends se abra…"
+
+        now = time.monotonic()
+        if now >= next_request:
+            api.follow_league_region()
+            status = api.launch_league()
+            request_count += 1
+            if status is None:
+                last_message = "Riot está iniciando League of Legends; esperando respuesta del cliente…"
+                next_request = now + 3
+            elif status in range(200, 300) or status == 423:
+                next_request = now + 6
+            elif status == 424:
+                # Riot uses 424 when it must patch the game before launch.
+                next_request = now + 3
+                active_update = True
+                last_message = "Riot está preparando una actualización de League of Legends…"
+            elif status in {408, 429, 500, 502, 503, 504} or status == -1:
+                next_request = now + 3
+                last_message = "Riot Client está ocupado; volveré a solicitar el inicio de League…"
+            else:
+                raise LoginFailure(f"Riot rechazó abrir League of Legends (respuesta HTTP {status}).")
+
+        report("launch", last_message)
+        time.sleep(1)
+    raise LoginFailure("Riot no llegó a abrir League of Legends. Comprueba el estado del cliente o su actualización.")
+
+
 def _restore_client(service: Path, args: list[str], renderer_path: Path | None,
                     renderer_args: list[str] | None) -> None:
     try:
@@ -343,8 +485,7 @@ def run_login(client_path: Path, username: str, password: str,
     current = api.username()
     if current and current.casefold() == username.casefold():
         report("launch", "La cuenta ya está iniciada. Abriendo League of Legends…")
-        if not api.launch_league():
-            raise LoginFailure("Riot Client no aceptó la orden de abrir League of Legends.")
+        _launch_and_wait(api, username, report)
         return
     if _league_is_running():
         raise LoginFailure("Cierra League of Legends antes de cambiar a otra cuenta.")
@@ -403,8 +544,7 @@ def run_login(client_path: Path, username: str, password: str,
                 if current.casefold() != expected:
                     raise LoginFailure("Riot inició una sesión distinta de la cuenta seleccionada.")
                 report("launch", "Riot confirmó la cuenta. Abriendo League of Legends…")
-                if not current_api.launch_league():
-                    raise LoginFailure("Riot confirmó el acceso, pero no aceptó abrir League of Legends.")
+                _launch_and_wait(current_api, username, report)
                 launched = True
                 return
             auth_state = renderer.evaluate("globalThis.__leagueAccountsLogin.status()")
