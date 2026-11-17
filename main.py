@@ -10,7 +10,7 @@ import traceback
 from pathlib import Path
 
 import uvicorn
-from PySide6.QtCore import QUrl
+from PySide6.QtCore import QTimer, QUrl
 from PySide6.QtGui import QIcon
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox
@@ -81,6 +81,8 @@ if __name__ == "__main__":
     application = QApplication(sys.argv)
     icon_path = ASSET_ROOT / "assets" / "yuumi.png"
     application.setWindowIcon(QIcon(str(icon_path)))
+    close_event = threading.Event()
+    app.state.close_event = close_event
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     server_socket.bind(("127.0.0.1", 0))
@@ -109,4 +111,13 @@ if __name__ == "__main__":
     window.setCentralWidget(view)
     view.load(QUrl(f"http://127.0.0.1:{port}"))
     window.show()
+    close_timer = QTimer(window)
+
+    def close_on_login() -> None:
+        if close_event.is_set():
+            close_timer.stop()
+            QTimer.singleShot(500, window.close)
+
+    close_timer.timeout.connect(close_on_login)
+    close_timer.start(100)
     sys.exit(application.exec())

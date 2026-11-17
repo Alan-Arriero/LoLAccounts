@@ -83,6 +83,15 @@ async def apply_update():
         raise HTTPException(409, str(exc)) from exc
 
 
+@app.post("/api/app/close")
+async def request_app_close():
+    close_event = getattr(app.state, "close_event", None)
+    if close_event is None:
+        raise HTTPException(503, "La ventana de escritorio no está conectada")
+    close_event.set()
+    return {"status": "closing"}
+
+
 class AccountCreate(BaseModel):
     game_name: str = Field(min_length=1, max_length=80)
     tag_line: str = Field(min_length=1, max_length=16)
