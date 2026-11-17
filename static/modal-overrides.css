@@ -1,0 +1,24 @@
+.modal-close {
+  top: 14px;
+  right: 14px;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 1px solid rgba(86, 245, 236, 0.3);
+  border-radius: 0;
+  background: rgba(86, 245, 236, 0.06);
+  font-size: 22px;
+  line-height: 1;
+  transform: none;
+}
+
+.modal-close:hover {
+  border-color: rgba(86, 245, 236, 0.75);
+  background: rgba(86, 245, 236, 0.13);
+}
+
+#account-modal .modal-description {
+  margin-top: 12px;
+}
