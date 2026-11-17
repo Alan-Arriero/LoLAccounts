@@ -22,7 +22,7 @@ Las cuentas y sus etiquetas se almacenan en SQLite local (league_accounts.db). L
 
 ## Inicio de sesión
 
-Al añadir una cuenta puedes guardar el usuario y la contraseña de Riot. La contraseña se conserva en el Administrador de credenciales de Windows; la base de datos no contiene contraseñas. El botón abre Riot Client y permite completar allí el acceso manualmente.
+Al añadir una cuenta puedes guardar el usuario y la contraseña de Riot. La contraseña se conserva en el Administrador de credenciales de Windows; la base de datos no contiene contraseñas. El botón de inicio abre Riot Client, completa automáticamente el formulario reconocido de Riot y lanza League of Legends tras confirmar la sesión. Si Riot solicita MFA o CAPTCHA, completa ese paso en el cliente.
 
 ## Descargas y actualizaciones
 

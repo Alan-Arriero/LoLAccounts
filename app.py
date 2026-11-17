@@ -3,8 +3,8 @@ from __future__ import annotations
 import json
 import os
 import sqlite3
-import subprocess
 import sys
+import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import quote
@@ -17,6 +17,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 import updater
+import riot_login
 
 if getattr(sys, "frozen", False):
     ROOT = Path(sys.executable).resolve().parent
@@ -30,6 +31,8 @@ DB_PATH = Path(os.getenv("DATABASE_PATH", str(ROOT / "league_accounts.db")))
 RIOT_KEY = os.getenv("RIOT_API_KEY", "").strip()
 KEYRING_SERVICE = "RiftVault.LoLAccounts"
 _ddragon_version: str | None = None
+_login_status_lock = threading.Lock()
+_login_statuses: dict[int, dict[str, str]] = {}
 
 
 def connect() -> sqlite3.Connection:
@@ -163,7 +166,7 @@ async def get_ddragon_version() -> str:
 
 
 def public(row: sqlite3.Row) -> dict:
-    account = {key: row[key] for key in row.keys() if key != "puuid"}
+    account = {key: row[key] for key in row.keys() if key not in {"puuid", "is_active"}}
     account["has_credentials"] = bool(keyring.get_password(KEYRING_SERVICE, str(row["id"])))
     account["has_riot_id"] = bool(row["puuid"] and row["game_name"] and row["tag_line"])
     return account
@@ -194,7 +197,7 @@ async def index():
 @app.get("/api/accounts")
 async def list_accounts():
     with connect() as db:
-        rows = db.execute("SELECT * FROM accounts ORDER BY is_active DESC, game_name COLLATE NOCASE").fetchall()
+        rows = db.execute("SELECT * FROM accounts ORDER BY created_at DESC, id DESC").fetchall()
     return [public(row) for row in rows]
 
 
@@ -335,39 +338,62 @@ async def refresh_account(account_id: int):
 
 
 
-@app.post("/api/accounts/{account_id}/activate")
-async def activate_account(account_id: int):
-    with connect() as db:
-        if not db.execute("SELECT 1 FROM accounts WHERE id=?", (account_id,)).fetchone():
-            raise HTTPException(404, "Cuenta no encontrada")
-        db.execute("UPDATE accounts SET is_active=0")
-        db.execute("UPDATE accounts SET is_active=1 WHERE id=?", (account_id,))
-        return public(db.execute("SELECT * FROM accounts WHERE id=?", (account_id,)).fetchone())
-
-
 @app.post("/api/accounts/{account_id}/login")
 async def login_account(account_id: int):
     with connect() as db:
         row = db.execute("SELECT * FROM accounts WHERE id=?", (account_id,)).fetchone()
     if not row:
         raise HTTPException(404, "Cuenta no encontrada")
-    if not keyring.get_password(KEYRING_SERVICE, str(account_id)):
+    stored = keyring.get_password(KEYRING_SERVICE, str(account_id))
+    if not stored:
         raise HTTPException(409, "Esta cuenta no tiene credenciales guardadas")
-    client = riot_client_path()
-    if client is None:
-        raise HTTPException(404, "No se encontró Riot Client. Instálalo en la ruta predeterminada.")
     try:
-        subprocess.Popen(
-            [str(client), "--launch-product=league_of_legends", "--launch-patchline=live"],
-            cwd=str(client.parent),
-            close_fds=True,
-        )
-    except OSError as exc:
-        raise HTTPException(500, "No se pudo abrir Riot Client") from exc
-    with connect() as db:
-        db.execute("UPDATE accounts SET is_active=0")
-        db.execute("UPDATE accounts SET is_active=1 WHERE id=?", (account_id,))
-    return {"account_id": account_id, "message": "Riot Client está abierto. Completa el inicio de sesión en la ventana del cliente."}
+        credentials = json.loads(stored)
+        username = str(credentials["username"]).strip()
+        password = str(credentials["password"])
+    except (ValueError, KeyError, TypeError) as exc:
+        raise HTTPException(500, "No se pudieron leer las credenciales guardadas de esta cuenta") from exc
+    if not username or not password:
+        raise HTTPException(409, "La cuenta no tiene usuario y contraseña guardados")
+    with _login_status_lock:
+        if any(item["state"] in {"starting", "running", "verification"} for item in _login_statuses.values()):
+            raise HTTPException(409, "Ya hay otro inicio de sesión en curso")
+        _login_statuses[account_id] = {
+            "state": "starting", "step": "client", "message": "Preparando Riot Client…"
+        }
+
+    def worker() -> None:
+        def report(step: str, message: str) -> None:
+            with _login_status_lock:
+                _login_statuses[account_id] = {
+                    "state": "verification" if step == "verification" else "running",
+                    "step": step,
+                    "message": message,
+                }
+        try:
+            client = riot_client_path()
+            if client is None:
+                raise riot_login.LoginFailure("No se encontró Riot Client en una ruta de instalación conocida.")
+            riot_login.run_login(client, username, password, report)
+            report("success", "League of Legends se está abriendo con la cuenta seleccionada.")
+            with _login_status_lock:
+                _login_statuses[account_id]["state"] = "success"
+        except Exception as exc:
+            with _login_status_lock:
+                _login_statuses[account_id] = {
+                    "state": "error", "step": "error", "message": str(exc)
+                }
+
+    threading.Thread(target=worker, name=f"riot-login-{account_id}", daemon=True).start()
+    return {"account_id": account_id, "status": "started"}
+
+
+@app.get("/api/accounts/{account_id}/login-status")
+async def account_login_status(account_id: int):
+    with _login_status_lock:
+        return dict(_login_statuses.get(
+            account_id, {"state": "idle", "step": "", "message": ""}
+        ))
 @app.delete("/api/accounts/{account_id}", status_code=204)
 async def delete_account(account_id: int):
     with connect() as db:
