@@ -1,0 +1,12 @@
+.env
+.venv/
+__pycache__/
+*.py[cod]
+league_accounts.db
+.pytest_cache/
+
+.webview-data/
+dist/
+build/
+*.spec
+
