@@ -1,0 +1,237 @@
+/* Adapted from Tariolle/LeagueAccounts ui/src/client-controls.css; MIT notice in THIRD_PARTY_NOTICES.md. */
+:root {
+  --client-gold-border: linear-gradient(to top, #785b28 0%, #c89c3c 55%, #c8a355 71%, #c8aa6e 100%);
+  --client-gold-hover: linear-gradient(to top, #c89c3c, #dcc188 50%, #e1c998 71%, #f0e6d8);
+  --client-gold-pressed: linear-gradient(#463817, #694f27);
+  --client-dark: #1e2328;
+  --client-gold-text: #cdbe91;
+  --client-white-text: #f0e6d2;
+  --client-cyan-border: linear-gradient(to top, #005a82, #0596aa 50%, #08b1b2);
+}
+
+button {
+  border-radius: 0 !important;
+  font-family: var(--display);
+  letter-spacing: .045em;
+  transition: color 160ms ease, background 160ms ease, border-color 160ms ease,
+    box-shadow 160ms ease, text-shadow 160ms ease;
+}
+
+button:focus-visible {
+  outline: 1px solid var(--cyan);
+  outline-offset: 3px;
+}
+
+button:disabled {
+  cursor: not-allowed !important;
+  filter: grayscale(.6);
+  box-shadow: none !important;
+}
+
+/* Primary actions use the League client's dark bronze fill and raised gold edge. */
+.lol-button {
+  min-height: 38px;
+  border: 2px solid transparent;
+  border-image: var(--client-gold-border) 1;
+  border-radius: 0;
+  clip-path: none;
+  background: linear-gradient(#5a401f, #332717);
+  color: #ead8a5;
+  box-shadow: 0 0 0 1px #010a13, inset 0 0 0 1px #010a13;
+  text-shadow: 0 1px 2px #000a;
+  transform: none;
+}
+
+.lol-button:hover:not(:disabled),
+.lol-button:focus-visible:not(:disabled) {
+  border-image: var(--client-gold-hover) 1;
+  background: linear-gradient(#604522, #846745);
+  color: var(--client-white-text);
+  box-shadow: 0 0 0 1px #010a13, inset 0 0 0 1px #010a13, 0 0 14px #d4b66f20;
+  filter: none;
+  transform: none;
+  animation: client-text-glow 600ms cubic-bezier(0, 0, .33, 1);
+}
+
+.lol-button:active:not(:disabled) {
+  border-image: var(--client-gold-pressed) 1;
+  background: linear-gradient(#332717, #201b14);
+  color: #a99870;
+  transform: scale(.97);
+  animation: client-click 130ms linear;
+}
+
+.lol-button:disabled {
+  border-image: none;
+  border-color: #3c3c41;
+  background: #1e2328;
+  color: #5b5a56;
+}
+
+.login-btn {
+  border: 1px solid transparent;
+  border-image: var(--client-cyan-border) 1;
+  background: #1e2328;
+  color: #a3c7c7;
+  box-shadow: 0 0 0 1px #010a13, inset 0 0 0 1px #010a13;
+}
+
+.login-btn:hover:not(:disabled),
+.login-btn:focus-visible:not(:disabled) {
+  border-image: linear-gradient(to top, #3097c6, #0ecaba 50%, #cdfafa) 1;
+  background: linear-gradient(0deg, #005a8255, #1e2328);
+  color: #cdfafa;
+  box-shadow: 0 0 0 1px #010a13, inset 0 0 0 1px #010a13, 0 0 12px #08b1b233;
+}
+
+.login-btn:active:not(:disabled) {
+  border-image: linear-gradient(#064360, #087b87) 1;
+  color: #78b8bd;
+  transform: scale(.96);
+}
+
+.activate-btn {
+  border: 1px solid transparent;
+  border-image: var(--client-gold-border) 1;
+  background: #1e2328;
+  color: var(--client-gold-text);
+  box-shadow: 0 0 0 1px #010a13;
+}
+
+.activate-btn:hover:not(:disabled),
+.activate-btn:focus-visible:not(:disabled) {
+  border-image: var(--client-gold-hover) 1;
+  background: linear-gradient(0deg, #76613366 -40%, #1e232a 60%);
+  color: var(--client-white-text);
+  box-shadow: 0 0 0 1px #010a13, 0 0 10px #d4b66f1a;
+}
+
+.card-menu,
+.icon-button,
+.modal-close {
+  border: 1px solid transparent;
+  border-image: linear-gradient(to top, #60491f, #a17d36 55%, #c8aa6e) 1;
+  background: #1e2328;
+  color: var(--client-gold-text);
+  box-shadow: 0 0 0 1px #010a13, inset 0 0 0 1px #010a13;
+}
+
+.card-menu:hover,
+.icon-button:hover,
+.modal-close:hover,
+.card-menu:focus-visible,
+.icon-button:focus-visible,
+.modal-close:focus-visible {
+  border-image: var(--client-gold-hover) 1;
+  background: linear-gradient(#33302a, #1e2328);
+  color: var(--client-white-text);
+  box-shadow: 0 0 0 1px #010a13, inset 0 0 0 1px #010a13, 0 0 12px #d4b66f22;
+}
+
+.account-menu button {
+  border: 0;
+  border-bottom: 1px solid #785b284d;
+  background: #171c21;
+  color: var(--client-gold-text);
+  text-align: left;
+}
+
+.account-menu button:last-child {
+  border-bottom: 0;
+}
+
+.account-menu button:hover,
+.account-menu button:focus-visible {
+  background: linear-gradient(90deg, #60452266, #1e2328);
+  color: var(--client-white-text);
+  text-shadow: 0 0 4px #f0e6d880;
+}
+
+.account-menu button[data-delete]:hover {
+  background: linear-gradient(90deg, #6d342c99, #1e2328);
+  color: #ffd6c5;
+}
+
+.nav-item {
+  border: 1px solid transparent;
+  border-left: 2px solid transparent;
+  background: transparent;
+  color: #a69a79;
+  box-shadow: none;
+  text-align: left;
+}
+
+.nav-item:hover,
+.nav-item:focus-visible {
+  border-color: #9a79383d;
+  border-left-color: #c89c3c;
+  background: linear-gradient(90deg, #60452255, transparent);
+  color: var(--client-white-text);
+}
+
+.nav-item.active {
+  border-color: #c89c3c55;
+  border-left-color: #d5b35c;
+  background: linear-gradient(90deg, #60452266, #1e232822);
+  color: #ead8a5;
+  box-shadow: inset 0 0 12px #d4b66f0b;
+}
+
+.rank-filter {
+  border: 1px solid transparent;
+  background: transparent;
+  color: #a69a79;
+  box-shadow: none;
+}
+
+.rank-filter:hover,
+.rank-filter:focus-visible {
+  border-color: #9a793844;
+  background: linear-gradient(90deg, #60452244, transparent);
+  color: var(--client-white-text);
+}
+
+.rank-filter.selected {
+  border-color: #c89c3c55;
+  background: linear-gradient(90deg, #60452255, transparent);
+  color: #ead8a5;
+}
+
+.rank-filter.selected b {
+  background: #c89c3c24;
+  color: #ead8a5;
+}
+
+.update-close {
+  border: 1px solid transparent;
+  border-image: var(--client-gold-border) 1;
+  background: #1e2328;
+  color: var(--client-gold-text);
+  padding: 8px 12px;
+}
+
+.update-close:hover,
+.update-close:focus-visible {
+  border-image: var(--client-gold-hover) 1;
+  background: linear-gradient(#33302a, #1e2328);
+  color: var(--client-white-text);
+}
+
+@keyframes client-click {
+  from { transform: scale(.94); }
+  to { transform: scale(1); }
+}
+
+@keyframes client-text-glow {
+  from { text-shadow: 0 0 4px #f0e6d8; }
+  50% { text-shadow: 0 0 4px #f0e6d880; }
+  to { text-shadow: 0 0 4px #f0e6d800; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button,
+  .lol-button:hover:not(:disabled) {
+    animation: none !important;
+    transition: none !important;
+  }
+}
