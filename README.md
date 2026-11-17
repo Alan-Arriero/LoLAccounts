@@ -15,7 +15,7 @@ La app se abre en una ventana nativa de Windows con Qt WebEngine incluido en el 
 
 ## API de Riot
 
-La clave se carga desde .env en el backend y ese archivo está excluido de Git. Para registrar otra clave, reemplaza RIOT_API_KEY en .env. El endpoint de cuentas usa la ruta regional europe; los datos clasificatorios se consultan en euw1.
+La clave se carga desde `.env` o, si no existe allí, desde el Administrador de credenciales de Windows. El archivo `.env` está excluido de Git. Las versiones nuevas de la app consultan el almacén de Windows para que las instalaciones de este usuario puedan compartir la clave sin incluirla en el repo o en el ZIP público. El endpoint de cuentas usa la ruta regional europe; los datos clasificatorios se consultan en euw1.
 
 Las cuentas y sus etiquetas se almacenan en SQLite local (league_accounts.db). Las contraseñas se guardan aparte en el Administrador de credenciales de Windows.
 

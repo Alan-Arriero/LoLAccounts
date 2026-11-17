@@ -28,11 +28,23 @@ else:
 
 load_dotenv(ROOT / ".env")
 DB_PATH = Path(os.getenv("DATABASE_PATH", str(ROOT / "league_accounts.db")))
-RIOT_KEY = os.getenv("RIOT_API_KEY", "").strip()
 KEYRING_SERVICE = "RiftVault.LoLAccounts"
 _ddragon_version: str | None = None
 _login_status_lock = threading.Lock()
 _login_statuses: dict[int, dict[str, str]] = {}
+
+
+def load_riot_api_key() -> str:
+    configured = os.getenv("RIOT_API_KEY", "").strip()
+    if configured:
+        return configured
+    try:
+        return (keyring.get_password(KEYRING_SERVICE, "riot_api_key") or "").strip()
+    except Exception:
+        return ""
+
+
+RIOT_KEY = load_riot_api_key()
 
 
 def connect() -> sqlite3.Connection:
