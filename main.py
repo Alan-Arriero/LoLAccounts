@@ -1,29 +1,35 @@
 from __future__ import annotations
 
 import socket
+import sys
 import threading
 import time
 
 import uvicorn
-import webview
+from PySide6.QtCore import QUrl
+from PySide6.QtGui import QIcon
+from PySide6.QtWebEngineWidgets import QWebEngineView
+from PySide6.QtWidgets import QApplication, QMainWindow
 
-from app import ROOT, app
-
-HOST = "127.0.0.1"
-PORT = 8765
-URL = f"http://{HOST}:{PORT}"
+from app import ASSET_ROOT, app
 
 
-def run_server() -> None:
-    config = uvicorn.Config(app, host=HOST, port=PORT, log_level="warning", access_log=False)
+def free_port() -> int:
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        return int(sock.getsockname()[1])
+
+
+def run_server(port: int) -> None:
+    config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning", access_log=False)
     uvicorn.Server(config).run()
 
 
-def wait_for_server(timeout: float = 15) -> None:
+def wait_for_server(port: int, timeout: float = 20) -> None:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         try:
-            with socket.create_connection((HOST, PORT), timeout=0.25):
+            with socket.create_connection(("127.0.0.1", port), timeout=0.25):
                 return
         except OSError:
             time.sleep(0.15)
@@ -31,14 +37,21 @@ def wait_for_server(timeout: float = 15) -> None:
 
 
 if __name__ == "__main__":
-    threading.Thread(target=run_server, name="rift-vault-server", daemon=True).start()
-    wait_for_server()
-    webview.create_window(
-        "Rift Vault | League Accounts",
-        URL,
-        width=1440,
-        height=920,
-        min_size=(1024, 680),
-        background_color="#080b15",
-    )
-    webview.start(gui="edgechromium", debug=False, storage_path=str(ROOT / ".webview-data"))
+    from PySide6.QtCore import Qt
+    QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
+    application = QApplication(sys.argv)
+    icon_path = ASSET_ROOT / "assets" / "yuumi.png"
+    application.setWindowIcon(QIcon(str(icon_path)))
+    port = free_port()
+    threading.Thread(target=run_server, args=(port,), name="rift-vault-server", daemon=True).start()
+    wait_for_server(port)
+    window = QMainWindow()
+    window.setWindowTitle("Rift Vault | League Accounts")
+    window.setWindowIcon(QIcon(str(icon_path)))
+    window.resize(1440, 920)
+    window.setMinimumSize(1024, 680)
+    view = QWebEngineView(window)
+    window.setCentralWidget(view)
+    view.load(QUrl(f"http://127.0.0.1:{port}"))
+    window.show()
+    sys.exit(application.exec())

@@ -16,6 +16,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+import updater
 
 if getattr(sys, "frozen", False):
     ROOT = Path(sys.executable).resolve().parent
@@ -61,11 +62,25 @@ def init_db() -> None:
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     init_db()
+    updater.start()
     yield
 
 
 app = FastAPI(title="Rift Vault", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=ASSET_ROOT / "static"), name="static")
+
+
+@app.get("/api/update/status")
+async def update_status():
+    return updater.status()
+
+
+@app.post("/api/update/apply")
+async def apply_update():
+    try:
+        return updater.apply_and_restart()
+    except RuntimeError as exc:
+        raise HTTPException(409, str(exc)) from exc
 
 
 class AccountCreate(BaseModel):

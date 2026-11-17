@@ -9,7 +9,7 @@ Instala Poetry y abre launch.vbs para iniciar Rift Vault sin una consola visible
 poetry install
 poetry run python main.py
 
-La app se abre en una ventana nativa de Windows con WebView2. Si Windows no encuentra el motor WebView2, instala Microsoft Edge WebView2 Runtime desde el sitio de Microsoft.
+La app se abre en una ventana nativa de Windows con Qt WebEngine incluido en el paquete.
 
 ## API de Riot
 
@@ -22,7 +22,11 @@ Las cuentas y sus etiquetas se almacenan en SQLite local (league_accounts.db). L
 
 Al añadir una cuenta puedes guardar el usuario y la contraseña de Riot. La contraseña se conserva en el Administrador de credenciales de Windows; la base de datos no contiene contraseñas. El botón abre Riot Client y permite completar allí el acceso manualmente.
 
-## Descargas
+## Descargas y actualizaciones
 
-Cada tag v* genera una release de Windows en GitHub Actions. Extrae el ZIP y ejecuta LoLAccounts.exe. La API key no se incluye en el paquete: copia .env.example a .env y añade tu clave de Riot en esa carpeta.
+Cada tag v* genera una release pública de Windows en GitHub Actions. Extrae el ZIP y ejecuta LoLAccounts.exe. Al iniciar, la app consulta la release pública más reciente; si encuentra una versión nueva, la descarga con indicador de progreso y ofrece reiniciarse para instalarla. El actualizador conserva .env y league_accounts.db.
+
+La release v0.1.0 usa el motor anterior y no puede actualizarse desde dentro de la aplicación. Descarga e instala manualmente la versión v0.2.0 una vez; las versiones posteriores podrán actualizarse automáticamente.
+
+La API key no se incluye en el paquete: copia .env.example a .env y añade tu clave de Riot en esa carpeta.
 

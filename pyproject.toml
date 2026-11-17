@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "rift-vault"
-version = "0.1.0"
+version = "0.2.0"
 description = "Neon League of Legends account manager for EUW"
 authors = ["Rift Vault"]
 readme = "README.md"
@@ -12,10 +12,10 @@ fastapi = "^0.115.0"
 uvicorn = { version = "^0.30.0", extras = ["standard"] }
 httpx = "^0.27.0"
 python-dotenv = "^1.0.1"
-pywebview = "^6.2"
-pythonnet = "^3.0.5"
 keyring = "^25.7.0"
 pyinstaller = "^6.22.3"
+pyside6 = "^6.12.0"
+pyside6-webengine = "^6.12.0"
 
 [build-system]
 requires = ["poetry-core>=1.9.0"]

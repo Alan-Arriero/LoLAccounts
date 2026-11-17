@@ -23,7 +23,7 @@ jobs:
       - name: Build app
         shell: pwsh
         run: |
-          poetry run pyinstaller --noconfirm --clean --windowed --onedir --name LoLAccounts --add-data "static;static" --collect-all webview --collect-all clr_loader --collect-all pythonnet --collect-all keyring main.py
+          poetry run pyinstaller --noconfirm --clean --windowed --onedir --name LoLAccounts --icon assets/yuumi.ico --add-data "static;static" --add-data "assets;assets" --collect-all keyring main.py
           Copy-Item README.md dist/LoLAccounts/README.txt
           Copy-Item .env.example dist/LoLAccounts/.env.example
           Compress-Archive -Path dist/LoLAccounts -DestinationPath dist/LoLAccounts-windows-x64.zip -Force
