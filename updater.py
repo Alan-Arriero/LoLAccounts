@@ -15,7 +15,7 @@ import httpx
 
 OWNER = "Alan-Arriero"
 REPO = "LoLAccounts"
-CURRENT_VERSION = "0.2.6"
+CURRENT_VERSION = "0.2.7"
 API = f"https://api.github.com/repos/{OWNER}/{REPO}/releases/latest"
 ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 _lock = threading.Lock()
@@ -89,11 +89,12 @@ def _check_and_download() -> None:
                 stream.raise_for_status()
                 total = int(stream.headers.get("content-length") or total)
                 with archive.open("wb") as output:
-                    for chunk in stream.iter_bytes(128 * 1024):
+                    for chunk in stream.iter_bytes(16 * 1024):
                         if chunk:
                             output.write(chunk)
                             downloaded += len(chunk)
-                            _set(progress=min(99, int(downloaded * 100 / total)) if total else 0)
+                            # Keep the true byte-based progress, including fractions, for smooth UI updates.
+                            _set(progress=min(99.9, downloaded * 100 / total) if total else 0)
             payload = _safe_extract(archive, staging / "payload")
             archive.unlink(missing_ok=True)
             _set(state="ready", progress=100, latest_version=tag, payload=str(payload))

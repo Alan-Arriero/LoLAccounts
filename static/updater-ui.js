@@ -6,7 +6,7 @@
   $('update-apply').addEventListener('click',async()=>{
     const button=$('update-apply');button.disabled=true;button.textContent='REINICIANDO...';
     try{await fetch('/api/update/apply',{method:'POST'})}
-    catch{button.disabled=false;button.textContent='REINTENTAR ACTUALIZACIÓN'}
+    catch{button.disabled=false;button.textContent='REINTENTAR'}
   });
   async function poll(){
     try{
@@ -19,7 +19,9 @@
       }else if(s.state==='downloading'){
         $('update-title').textContent='Descargando actualización';
         $('update-message').textContent='Rift Vault se actualizará al terminar la descarga.';
-        $('update-progress').style.width=(s.progress||0)+'%';$('update-percent').textContent=(s.progress||0)+'%';
+        const progress=Math.max(0,Math.min(99.9,Number(s.progress)||0));
+        $('update-progress').style.width=progress.toFixed(2)+'%';
+        $('update-percent').textContent=Math.floor(progress)+'%';
         $('update-version').textContent=s.latest_version||'';
       }else if(s.state==='ready'){
         $('update-title').textContent='Nueva versión lista';
@@ -32,7 +34,7 @@
         $('update-message').textContent=s.error||'Comprueba tu conexión e inténtalo más tarde.';
         $('update-close').hidden=false;
       }
-      if(s.state==='checking'||s.state==='downloading')setTimeout(poll,900);
+      if(s.state==='checking'||s.state==='downloading')setTimeout(poll,s.state==='downloading'?120:900);
     }catch{setTimeout(poll,2500)}
   }
   poll();

@@ -7,7 +7,7 @@
 .update-panel h2{margin:10px 0;font:600 26px var(--display);letter-spacing:.7px}
 .update-panel p{min-height:34px;color:#94a1b8;font-size:10px;line-height:1.7}
 .update-track{height:7px;margin:22px 0 9px;background:#ffffff10;border:1px solid #ffffff0c;overflow:hidden}
-.update-track i{display:block;width:0;height:100%;background:linear-gradient(90deg,#56f5ec,#ed58ff);box-shadow:0 0 16px #56f5ec88;transition:width .3s ease;animation:progress-glow 1.4s infinite alternate}
+.update-track i{display:block;width:0;height:100%;background:linear-gradient(90deg,#56f5ec,#ed58ff);box-shadow:0 0 16px #56f5ec88;transition:width .12s linear;animation:progress-glow 1.4s infinite alternate}
 .update-meta{display:flex;justify-content:space-between;color:#a7b4c8;font:600 10px var(--display);letter-spacing:1px}
 .update-close{margin-top:16px;border:0;background:transparent;color:#8a97ad;font-size:9px;cursor:pointer}
 .update-close:hover{color:var(--cyan)}
