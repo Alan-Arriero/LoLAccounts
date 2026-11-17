@@ -26,7 +26,7 @@ Al añadir una cuenta puedes guardar el usuario y la contraseña de Riot. La con
 
 Cada tag v* genera una release pública de Windows en GitHub Actions. Extrae el ZIP y ejecuta LoLAccounts.exe. Al iniciar, la app consulta la release pública más reciente; si encuentra una versión nueva, la descarga con indicador de progreso y ofrece reiniciarse para instalarla. El actualizador conserva .env y league_accounts.db.
 
-La release v0.1.0 usa el motor anterior y no puede actualizarse desde dentro de la aplicación. Descarga e instala manualmente la versión v0.2.0 una vez; las versiones posteriores podrán actualizarse automáticamente.
+Si una versión instalada no llega a abrir la interfaz, descarga e instala manualmente la release actual. Una vez que la aplicación inicia normalmente, las versiones posteriores pueden actualizarse automáticamente.
 
 La API key no se incluye en el paquete: copia .env.example a .env y añade tu clave de Riot en esa carpeta.
 

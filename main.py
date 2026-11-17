@@ -1,39 +1,78 @@
 from __future__ import annotations
 
 import socket
+import logging
+import os
 import sys
 import threading
 import time
+import traceback
+from pathlib import Path
 
 import uvicorn
 from PySide6.QtCore import QUrl
 from PySide6.QtGui import QIcon
 from PySide6.QtWebEngineWidgets import QWebEngineView
-from PySide6.QtWidgets import QApplication, QMainWindow
+from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox
 
 from app import ASSET_ROOT, app
 
 
-def free_port() -> int:
-    with socket.socket() as sock:
-        sock.bind(("127.0.0.1", 0))
-        return int(sock.getsockname()[1])
+def server_log_path() -> Path:
+    base = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / "RiftVault"
+    base.mkdir(parents=True, exist_ok=True)
+    return base / "startup.log"
 
 
-def run_server(port: int) -> None:
-    config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning", access_log=False)
-    uvicorn.Server(config).run()
+def run_server(sock: socket.socket, result: dict, ready: threading.Event) -> None:
+    log_handler = logging.FileHandler(server_log_path(), mode="a", encoding="utf-8")
+    logger = logging.getLogger("uvicorn.error")
+    logger.handlers.clear()
+    logger.addHandler(log_handler)
+    logger.setLevel(logging.INFO)
+    try:
+        config = uvicorn.Config(app, log_config=None, log_level="info", access_log=False, lifespan="on")
+        server = uvicorn.Server(config)
+        result["server"] = server
+        server.run(sockets=[sock])
+        if not server.started and "error" not in result:
+            result["error"] = "Uvicorn terminó antes de iniciar el servidor."
+    except BaseException:
+        result["error"] = traceback.format_exc()
+        try:
+            sock.close()
+        except OSError:
+            pass
+    finally:
+        logger.removeHandler(log_handler)
+        log_handler.close()
+        ready.set()
 
 
-def wait_for_server(port: int, timeout: float = 20) -> None:
+def wait_for_server(sock: socket.socket, result: dict, ready: threading.Event, timeout: float = 30) -> int:
+    port = sock.getsockname()[1]
     deadline = time.monotonic() + timeout
+    server = None
     while time.monotonic() < deadline:
+        server = result.get("server")
+        if server and server.started:
+            server_log_path().write_text(
+                f"Rift Vault server started on http://127.0.0.1:{port}\n",
+                encoding="utf-8",
+            )
+            return port
+        if ready.is_set():
+            break
         try:
             with socket.create_connection(("127.0.0.1", port), timeout=0.25):
-                return
+                pass
         except OSError:
-            time.sleep(0.15)
-    raise RuntimeError("No se pudo iniciar el servidor local de Rift Vault.")
+            pass
+        time.sleep(0.1)
+    log_file = server_log_path()
+    logged = log_file.read_text(encoding="utf-8", errors="replace") if log_file.exists() else ""
+    detail = result.get("error") or logged or "El servidor no completó el inicio dentro del tiempo esperado."
+    raise RuntimeError(f"No se pudo iniciar el servidor local de Rift Vault.\n\n{detail}")
 
 
 if __name__ == "__main__":
@@ -42,9 +81,25 @@ if __name__ == "__main__":
     application = QApplication(sys.argv)
     icon_path = ASSET_ROOT / "assets" / "yuumi.png"
     application.setWindowIcon(QIcon(str(icon_path)))
-    port = free_port()
-    threading.Thread(target=run_server, args=(port,), name="rift-vault-server", daemon=True).start()
-    wait_for_server(port)
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    server_socket.bind(("127.0.0.1", 0))
+    server_log_path().write_text("", encoding="utf-8")
+    result: dict = {}
+    server_ready = threading.Event()
+    threading.Thread(
+        target=run_server,
+        args=(server_socket, result, server_ready),
+        name="rift-vault-server",
+        daemon=True,
+    ).start()
+    try:
+        port = wait_for_server(server_socket, result, server_ready)
+    except RuntimeError as exc:
+        detail = f"{exc}\n\nRegistro: {server_log_path()}"
+        server_log_path().write_text(detail, encoding="utf-8")
+        QMessageBox.critical(None, "No se pudo iniciar Rift Vault", detail)
+        raise
     window = QMainWindow()
     window.setWindowTitle("Rift Vault | League Accounts")
     window.setWindowIcon(QIcon(str(icon_path)))
