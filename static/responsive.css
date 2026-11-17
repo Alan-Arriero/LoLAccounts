@@ -1,0 +1,71 @@
+/* Keep the desktop layout centered and let the app use the full window size. */
+html,
+body,
+#app,
+.app-shell {
+  width: 100%;
+  min-width: 0;
+}
+
+.app-shell {
+  min-height: 100vh;
+}
+
+.main-content {
+  flex: 1 1 0;
+  width: calc(100% - 242px);
+  max-width: none;
+  min-width: 0;
+  padding-inline: clamp(20px, 4vw, 72px);
+}
+
+.collection {
+  width: 100%;
+  max-width: 1600px;
+  margin-inline: auto;
+}
+
+.collection-actions,
+.section-heading,
+.account-grid {
+  min-width: 0;
+}
+
+@media (max-width: 1100px) {
+  .main-content {
+    padding-inline: clamp(18px, 3vw, 34px);
+  }
+}
+
+@media (max-width: 760px) {
+  .main-content {
+    width: calc(100% - 68px);
+    padding-inline: 20px;
+  }
+}
+
+@media (max-width: 470px) {
+  .main-content {
+    padding-inline: 14px;
+  }
+
+  .collection-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .collection-actions .search-box {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .collection-actions .sort-select {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .collection-actions > .lol-button {
+    width: 100%;
+  }
+}

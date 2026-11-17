@@ -106,7 +106,7 @@ if __name__ == "__main__":
     window.setWindowTitle("Rift Vault | League Accounts")
     window.setWindowIcon(QIcon(str(icon_path)))
     window.resize(1440, 920)
-    window.setMinimumSize(1024, 680)
+    window.setMinimumSize(760, 560)
     view = QWebEngineView(window)
     window.setCentralWidget(view)
     view.load(QUrl(f"http://127.0.0.1:{port}"))
