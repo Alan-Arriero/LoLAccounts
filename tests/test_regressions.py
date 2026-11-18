@@ -44,7 +44,7 @@ class AccountRegressionTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_logo_endpoint_serves_the_root_logo(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            logo = Path(temporary) / "logo.png"
+            logo = Path(temporary) / "image.png"
             logo.write_bytes(b"logo")
             with patch.object(app, "ASSET_ROOT", Path(temporary)):
                 response = await app.application_logo()

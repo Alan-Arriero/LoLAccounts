@@ -12,7 +12,7 @@ public static class RiftVaultIconNative {
 }
 
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$source = [System.Drawing.Image]::FromFile((Join-Path $root 'logo.png'))
+$source = [System.Drawing.Image]::FromFile((Join-Path $root 'image.png'))
 $bitmap = New-Object System.Drawing.Bitmap(256, 256, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
 $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
 $icon = $null

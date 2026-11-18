@@ -25,7 +25,7 @@ jobs:
         run: |
           # PyInstaller may otherwise collect unrelated ICU DLLs from Poppler in the runner PATH.
           $env:PATH = (($env:PATH -split ';') | Where-Object { $_ -notmatch '(?i)\\poppler\\Library\\bin' }) -join ';'
-          poetry run pyinstaller --noconfirm --clean --windowed --onedir --name "Rift Vault" --icon logo.ico --add-data "logo.png;." --add-data "static;static" --add-data "riot_renderer.js;." --collect-all keyring --collect-all psutil --collect-all websocket --collect-all tzdata main.py
+          poetry run pyinstaller --noconfirm --clean --windowed --onedir --name "Rift Vault" --icon logo.ico --add-data "image.png;." --add-data "static;static" --add-data "riot_renderer.js;." --collect-all keyring --collect-all psutil --collect-all websocket --collect-all tzdata main.py
           Copy-Item README.md "dist/Rift Vault/README.txt"
           Copy-Item THIRD_PARTY_NOTICES.md "dist/Rift Vault/THIRD_PARTY_NOTICES.txt"
           Copy-Item .env.example "dist/Rift Vault/.env.example"

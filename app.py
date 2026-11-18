@@ -368,9 +368,9 @@ async def index():
     return FileResponse(ASSET_ROOT / "static" / "index.html")
 
 
-@app.get("/logo.png")
+@app.get("/image.png")
 async def application_logo():
-    return FileResponse(ASSET_ROOT / "logo.png", media_type="image/png")
+    return FileResponse(ASSET_ROOT / "image.png", media_type="image/png")
 
 
 @app.get("/api/accounts")
