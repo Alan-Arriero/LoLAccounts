@@ -82,7 +82,7 @@ def init_db() -> None:
             game_name TEXT NOT NULL,
             tag_line TEXT NOT NULL,
             puuid TEXT UNIQUE,
-            tier TEXT, rank TEXT, league_points INTEGER,
+            tier TEXT, rank TEXT, flex_tier TEXT, flex_rank TEXT, league_points INTEGER,
             wins INTEGER, losses INTEGER,
             label TEXT NOT NULL DEFAULT '',
             is_active INTEGER NOT NULL DEFAULT 0,
@@ -93,7 +93,7 @@ def init_db() -> None:
         )""")
         columns = {row["name"] for row in db.execute("PRAGMA table_info(accounts)")}
         for column, sql_type in (("profile_icon_id", "INTEGER"), ("summoner_level", "INTEGER"),
-                                 ("icon_version", "TEXT")):
+                                 ("icon_version", "TEXT"), ("flex_tier", "TEXT"), ("flex_rank", "TEXT")):
             if column not in columns:
                 db.execute(f"ALTER TABLE accounts ADD COLUMN {column} {sql_type}")
         puuid_column = next(row for row in db.execute("PRAGMA table_info(accounts)") if row["name"] == "puuid")
@@ -104,7 +104,7 @@ def init_db() -> None:
                 game_name TEXT NOT NULL,
                 tag_line TEXT NOT NULL,
                 puuid TEXT UNIQUE,
-                tier TEXT, rank TEXT, league_points INTEGER,
+                tier TEXT, rank TEXT, flex_tier TEXT, flex_rank TEXT, league_points INTEGER,
                 wins INTEGER, losses INTEGER,
                 label TEXT NOT NULL DEFAULT '',
                 is_active INTEGER NOT NULL DEFAULT 0,
@@ -114,9 +114,9 @@ def init_db() -> None:
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
             )""")
             db.execute("""INSERT INTO accounts
-                (id, game_name, tag_line, puuid, tier, rank, league_points, wins, losses,
+                (id, game_name, tag_line, puuid, tier, rank, flex_tier, flex_rank, league_points, wins, losses,
                  label, is_active, profile_icon_id, summoner_level, icon_version, created_at)
-                SELECT id, game_name, tag_line, puuid, tier, rank, league_points, wins, losses,
+                SELECT id, game_name, tag_line, puuid, tier, rank, flex_tier, flex_rank, league_points, wins, losses,
                        label, is_active, profile_icon_id, summoner_level, icon_version, created_at
                 FROM accounts_legacy""")
             db.execute("DROP TABLE accounts_legacy")
@@ -205,16 +205,24 @@ async def refresh_status():
         }
 
 
+def _rank_entry(entries: list, queue_type: str) -> dict:
+    return next((entry for entry in entries if entry.get("queueType") == queue_type), {})
+
+
 async def _refresh_rank(account_id: int, puuid: str) -> None:
-    ranked = await riot_get(
-        f"https://euw1.api.riotgames.com/lol/league/v4/entries/by-puuid/{quote(puuid, safe='')}"
+    ranked_data = await riot_get_or_default(
+        f"https://euw1.api.riotgames.com/lol/league/v4/entries/by-puuid/{quote(puuid, safe='')}",
+        [],
     )
-    selected = next((entry for entry in ranked if entry.get("queueType") == "RANKED_SOLO_5x5"), None)
-    selected = selected or next((entry for entry in ranked if entry.get("queueType") == "RANKED_FLEX_SR"), None) or {}
+    ranked = ranked_data if isinstance(ranked_data, list) else []
+    solo = _rank_entry(ranked, "RANKED_SOLO_5x5")
+    flex = _rank_entry(ranked, "RANKED_FLEX_SR")
     with connect() as db:
-        db.execute("UPDATE accounts SET tier=?,rank=?,league_points=?,wins=?,losses=? WHERE id=?", (
-            selected.get("tier", "UNRANKED"), selected.get("rank", ""), selected.get("leaguePoints", 0),
-            selected.get("wins", 0), selected.get("losses", 0), account_id))
+        db.execute("""UPDATE accounts SET tier=?,rank=?,flex_tier=?,flex_rank=?,
+            league_points=?,wins=?,losses=? WHERE id=?""", (
+            solo.get("tier", "UNRANKED"), solo.get("rank", ""),
+            flex.get("tier", "UNRANKED"), flex.get("rank", ""),
+            solo.get("leaguePoints", 0), solo.get("wins", 0), solo.get("losses", 0), account_id))
 
 
 async def _refresh_all_linked_accounts() -> None:
@@ -248,13 +256,19 @@ def _rank_refresh_worker() -> None:
                 _rank_refresh_deadline = _next_rank_refresh_deadline()
 
 
+def _needs_flex_rank_backfill() -> bool:
+    with connect() as db:
+        return db.execute("""SELECT 1 FROM accounts
+            WHERE puuid IS NOT NULL AND puuid!='' AND flex_tier IS NULL LIMIT 1""").fetchone() is not None
+
+
 def _start_rank_refresh_worker() -> None:
     global _rank_refresh_deadline, _rank_refresh_thread
     if _rank_refresh_thread and _rank_refresh_thread.is_alive():
         return
     _rank_refresh_stop.clear()
     with _rank_refresh_lock:
-        _rank_refresh_deadline = _next_rank_refresh_deadline()
+        _rank_refresh_deadline = time.time() if _needs_flex_rank_backfill() else _next_rank_refresh_deadline()
     _rank_refresh_thread = threading.Thread(
         target=_rank_refresh_worker, name="hourly-rank-refresh", daemon=True
     )
@@ -392,7 +406,8 @@ async def add_account(payload: AccountCreate):
     profile_icon_id = None
     summoner_level = None
     icon_version = None
-    selected: dict = {}
+    solo: dict = {}
+    flex: dict = {}
     display_name = "Cuenta sin Riot ID"
     if game_name and tag_line:
         encoded_name, encoded_tag = quote(game_name, safe=""), quote(tag_line, safe="")
@@ -417,18 +432,18 @@ async def add_account(payload: AccountCreate):
         icon_version = await get_ddragon_version()
         display_name = account.get("gameName", game_name)
         tag_line = account.get("tagLine", tag_line)
-        solo = next((entry for entry in ranked if entry.get("queueType") == "RANKED_SOLO_5x5"), None)
-        flex = next((entry for entry in ranked if entry.get("queueType") == "RANKED_FLEX_SR"), None)
-        selected = solo or flex or {}
+        solo = _rank_entry(ranked, "RANKED_SOLO_5x5")
+        flex = _rank_entry(ranked, "RANKED_FLEX_SR")
     with connect() as db:
         try:
             cursor = db.execute("""INSERT INTO accounts
-                (game_name, tag_line, puuid, tier, rank, league_points, wins, losses, label,
+                (game_name, tag_line, puuid, tier, rank, flex_tier, flex_rank, league_points, wins, losses, label,
                  profile_icon_id, summoner_level, icon_version)
-                VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""", (
+                VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""", (
                 display_name, tag_line, puuid,
-                selected.get("tier", "UNRANKED"), selected.get("rank", ""),
-                selected.get("leaguePoints", 0), selected.get("wins", 0), selected.get("losses", 0),
+                solo.get("tier", "UNRANKED"), solo.get("rank", ""),
+                flex.get("tier", "UNRANKED"), flex.get("rank", ""),
+                solo.get("leaguePoints", 0), solo.get("wins", 0), solo.get("losses", 0),
                 payload.label.strip(), profile_icon_id, summoner_level, icon_version))
             account_id = cursor.lastrowid
             row = db.execute("SELECT * FROM accounts WHERE id=?", (account_id,)).fetchone()
@@ -477,16 +492,18 @@ async def update_account(account_id: int, payload: AccountUpdate):
         level = summoner.get("summonerLevel")
         summoner_level = level if isinstance(level, int) and not isinstance(level, bool) else None
         icon_version = await get_ddragon_version()
-        selected = next((entry for entry in ranked if entry.get("queueType") == "RANKED_SOLO_5x5"), None)
-        selected = selected or next((entry for entry in ranked if entry.get("queueType") == "RANKED_FLEX_SR"), None) or {}
+        solo = _rank_entry(ranked, "RANKED_SOLO_5x5")
+        flex = _rank_entry(ranked, "RANKED_FLEX_SR")
         with connect() as db:
             try:
                 db.execute("""UPDATE accounts SET game_name=?, tag_line=?, puuid=?, tier=?, rank=?,
+                    flex_tier=?, flex_rank=?,
                     league_points=?, wins=?, losses=?, profile_icon_id=?, summoner_level=?, icon_version=?,
                     label=COALESCE(?, label) WHERE id=?""", (
                     account.get("gameName", game_name), account.get("tagLine", tag_line), puuid,
-                    selected.get("tier", "UNRANKED"), selected.get("rank", ""),
-                    selected.get("leaguePoints", 0), selected.get("wins", 0), selected.get("losses", 0),
+                    solo.get("tier", "UNRANKED"), solo.get("rank", ""),
+                    flex.get("tier", "UNRANKED"), flex.get("rank", ""),
+                    solo.get("leaguePoints", 0), solo.get("wins", 0), solo.get("losses", 0),
                     profile_icon_id, summoner_level, icon_version,
                     payload.label.strip() if payload.label is not None else None, account_id))
             except sqlite3.IntegrityError as exc:

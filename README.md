@@ -4,6 +4,8 @@ Aplicación de escritorio local para gestionar cuentas de League of Legends en E
 
 Los rangos y LP se actualizan automáticamente cada hora en punto según la hora de España, también con el cambio entre horario de invierno y verano.
 
+Solo/Duo y Flex se guardan y muestran por separado. El filtro «Puede jugar con» aplica las restricciones de la cola elegida según el rango visible, siguiendo las [reglas oficiales de clasificatoria de Riot](https://support.riotgames.com/en-us/league-of-legends/gameplay/ranked-tiers-divisions-and-queues); las restricciones adicionales basadas en MMR no son visibles para la aplicación.
+
 Los emblemas Iron–Challenger proceden del paquete oficial [Ranked Emblems Latest de Riot](https://static.developer.riotgames.com/docs/lol/ranked-emblems-latest.zip). El emblema y la miniatura de Sin clasificar proceden del cliente oficial de League of Legends, parche 16.20, y se sirven localmente; su origen está documentado en [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md). El icono y la interfaz utilizan la imagen `image.png` de la raíz del proyecto; `logo.ico` se genera a partir de esa misma imagen.
 
 ## Inicio de escritorio
