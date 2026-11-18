@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+import ssl
 import sqlite3
 import tempfile
 import unittest
@@ -305,6 +306,7 @@ class UpdaterRegressionTests(unittest.TestCase):
             archive.writestr("Rift Vault/_internal/static/index.html", b"app")
         archive_bytes = archive_buffer.getvalue()
         requested_urls: list[str] = []
+        client_options: dict = {}
 
         class Response:
             def __init__(self, value):
@@ -332,8 +334,8 @@ class UpdaterRegressionTests(unittest.TestCase):
                 yield archive_bytes
 
         class Client:
-            def __init__(self, **_kwargs):
-                pass
+            def __init__(self, **kwargs):
+                client_options.update(kwargs)
 
             def __enter__(self):
                 return self
@@ -344,7 +346,7 @@ class UpdaterRegressionTests(unittest.TestCase):
             def get(self, url):
                 requested_urls.append(url)
                 return Response({
-                    "tag_name": "v0.2.38",
+                    "tag_name": "v0.2.39",
                     "assets": [{
                         "name": "LoLAccounts-windows-x64.zip",
                         "size": len(archive_bytes),
@@ -373,8 +375,11 @@ class UpdaterRegressionTests(unittest.TestCase):
         self.assertEqual(requested_urls[0], updater.API)
         self.assertEqual(requested_urls[1], "https://example.test/latest.zip")
         self.assertEqual(result["state"], "ready")
-        self.assertEqual(result["latest_version"], "v0.2.38")
+        self.assertEqual(result["latest_version"], "v0.2.39")
         self.assertEqual(Path(result["payload"]).name, "Rift Vault")
+        self.assertIsInstance(client_options["verify"], ssl.SSLContext)
+        self.assertTrue(client_options["verify"].check_hostname)
+        self.assertEqual(client_options["verify"].verify_mode, ssl.CERT_REQUIRED)
 
 
 if __name__ == "__main__":

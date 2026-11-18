@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import ssl
 import subprocess
 import sys
 import tempfile
@@ -15,7 +16,7 @@ import httpx
 
 OWNER = "Alan-Arriero"
 REPO = "LoLAccounts"
-CURRENT_VERSION = "0.2.37"
+CURRENT_VERSION = "0.2.38"
 EXECUTABLE_NAME = "Rift Vault.exe"
 API = f"https://api.github.com/repos/{OWNER}/{REPO}/releases/latest"
 ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
@@ -67,7 +68,13 @@ def _check_and_download() -> None:
     _set(state="checking", progress=0)
     try:
         headers = {"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}
-        with httpx.Client(timeout=httpx.Timeout(30, connect=10), follow_redirects=True, headers=headers) as client:
+        tls_context = ssl.create_default_context()
+        with httpx.Client(
+            verify=tls_context,
+            timeout=httpx.Timeout(30, connect=10),
+            follow_redirects=True,
+            headers=headers,
+        ) as client:
             response = client.get(API)
             response.raise_for_status()
             release = response.json()
