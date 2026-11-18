@@ -79,7 +79,7 @@ if __name__ == "__main__":
     from PySide6.QtCore import Qt
     QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
     application = QApplication(sys.argv)
-    icon_path = ASSET_ROOT / "assets" / "yuumi.png"
+    icon_path = ASSET_ROOT / "logo.png"
     application.setWindowIcon(QIcon(str(icon_path)))
     close_event = threading.Event()
     app.state.close_event = close_event

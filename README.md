@@ -2,7 +2,9 @@
 
 Aplicación de escritorio local para gestionar cuentas de League of Legends en EUW. Consulta los Riot IDs y rangos con la API oficial de Riot, mantiene el perfil activo local y permite filtrar la colección por elo, nombre, etiqueta o porcentaje de victorias.
 
-Los emblemas Iron–Challenger proceden del paquete oficial [Ranked Emblems Latest de Riot](https://static.developer.riotgames.com/docs/lol/ranked-emblems-latest.zip). Riot no incluye un emblema Unranked en ese paquete; la interfaz lo presenta como Sin clasificar sin atribuirle una imagen oficial inexistente. La imagen de Yuumi del icono y la interfaz parte de images.jpg.
+Los rangos y LP se actualizan automáticamente cada hora en punto según la hora de España, también con el cambio entre horario de invierno y verano.
+
+Los emblemas Iron–Challenger proceden del paquete oficial [Ranked Emblems Latest de Riot](https://static.developer.riotgames.com/docs/lol/ranked-emblems-latest.zip). Riot no incluye un emblema Unranked en ese paquete; la interfaz lo presenta como Sin clasificar sin atribuirle una imagen oficial inexistente. El icono y la interfaz utilizan la imagen `logo.png` de la raíz del proyecto.
 
 ## Inicio de escritorio
 

@@ -6,8 +6,10 @@ import tempfile
 import unittest
 import zipfile
 from contextlib import contextmanager
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
+from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
 
@@ -27,6 +29,29 @@ def closing_connection(path: Path):
 
 
 class AccountRegressionTests(unittest.IsolatedAsyncioTestCase):
+    def test_hourly_refresh_deadline_uses_spain_clock(self) -> None:
+        spain = ZoneInfo("Europe/Madrid")
+        for month in (1, 8):
+            now = datetime(2026, month, 18, 12, 17, tzinfo=spain)
+            deadline = app._next_rank_refresh_deadline(now.timestamp())
+            next_refresh = datetime.fromtimestamp(deadline, spain)
+
+            self.assertEqual(
+                (next_refresh.year, next_refresh.month, next_refresh.day, next_refresh.hour,
+                 next_refresh.minute, next_refresh.second),
+                (2026, month, 18, 13, 0, 0),
+            )
+
+    async def test_logo_endpoint_serves_the_root_logo(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            logo = Path(temporary) / "logo.png"
+            logo.write_bytes(b"logo")
+            with patch.object(app, "ASSET_ROOT", Path(temporary)):
+                response = await app.application_logo()
+
+            self.assertEqual(Path(response.path), logo)
+            self.assertEqual(response.media_type, "image/png")
+
     async def test_adds_a_second_account_without_an_euw_rank_entry(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             database = Path(temporary) / "accounts.db"

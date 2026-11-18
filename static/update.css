@@ -2,7 +2,7 @@
 .update-overlay.visible{opacity:1;visibility:visible}
 .update-panel [hidden]{display:none}
 .update-panel{width:min(100%,440px);padding:32px;background:linear-gradient(145deg,rgba(19,28,47,.96),rgba(10,15,28,.97));border:1px solid #56f5ec55;box-shadow:0 25px 90px #000a,0 0 45px #56f5ec13;text-align:center;animation:rise-in .24s ease}
-.update-panel>img{width:66px;height:66px;border-radius:14px;object-fit:cover;box-shadow:0 0 25px #56f5ec33}
+.update-panel>img{width:66px;height:66px;object-fit:contain}
 .update-kicker{margin-top:17px;color:var(--cyan);font-size:8px;letter-spacing:2px;font-weight:700}
 .update-panel h2{margin:10px 0;font:600 26px var(--display);letter-spacing:.7px}
 .update-panel p{min-height:34px;color:#94a1b8;font-size:10px;line-height:1.7}
@@ -13,7 +13,7 @@
 .update-close:hover{color:var(--cyan)}
 @keyframes progress-glow{from{filter:brightness(.86)}to{filter:brightness(1.3)}}
 
-/* Official ranked emblems and the supplied Yuumi artwork */
+/* Official ranked emblems and the supplied logo artwork */
 .rank-filter img{width:25px;height:25px;object-fit:contain;filter:none}
 .rank-emblem-image{width:43px;height:43px;object-fit:contain;filter:drop-shadow(0 2px 5px #0009)}
 .brand-mark{transform:none!important;overflow:hidden;border-radius:50%;background:#111729}

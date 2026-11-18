@@ -9,8 +9,10 @@ import time
 import subprocess
 import asyncio
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import quote
+from zoneinfo import ZoneInfo
 
 import httpx
 import keyring
@@ -36,11 +38,19 @@ KEYRING_SERVICE = "RiftVault.LoLAccounts"
 _ddragon_version: str | None = None
 _login_status_lock = threading.Lock()
 _login_statuses: dict[int, dict[str, str]] = {}
-_rank_refresh_interval = 60 * 60
+_spain_timezone = ZoneInfo("Europe/Madrid")
+
+
+def _next_rank_refresh_deadline(now: float | None = None) -> float:
+    current = datetime.fromtimestamp(time.time() if now is None else now, timezone.utc)
+    next_hour = current.replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
+    return next_hour.astimezone(_spain_timezone).timestamp()
+
+
 _rank_refresh_lock = threading.Lock()
 _rank_refresh_stop = threading.Event()
 _rank_refresh_thread: threading.Thread | None = None
-_rank_refresh_deadline = time.monotonic() + _rank_refresh_interval
+_rank_refresh_deadline = _next_rank_refresh_deadline()
 _rank_refreshing = False
 _rank_refresh_last_run: float | None = None
 
@@ -190,7 +200,7 @@ async def refresh_status():
     with _rank_refresh_lock:
         return {
             "refreshing": _rank_refreshing,
-            "next_refresh_seconds": 0 if _rank_refreshing else max(0, int(_rank_refresh_deadline - time.monotonic())),
+            "next_refresh_seconds": 0 if _rank_refreshing else max(0, int(_rank_refresh_deadline - time.time())),
             "last_refresh": _rank_refresh_last_run,
         }
 
@@ -220,10 +230,12 @@ async def _refresh_all_linked_accounts() -> None:
 def _rank_refresh_worker() -> None:
     global _rank_refresh_deadline, _rank_refreshing, _rank_refresh_last_run
     while not _rank_refresh_stop.is_set():
-        remaining = max(0, _rank_refresh_deadline - time.monotonic())
+        remaining = max(0, _rank_refresh_deadline - time.time())
         if _rank_refresh_stop.wait(remaining):
             return
         with _rank_refresh_lock:
+            if time.time() < _rank_refresh_deadline:
+                continue
             _rank_refreshing = True
         try:
             asyncio.run(_refresh_all_linked_accounts())
@@ -233,14 +245,16 @@ def _rank_refresh_worker() -> None:
             with _rank_refresh_lock:
                 _rank_refreshing = False
                 _rank_refresh_last_run = time.time()
-                _rank_refresh_deadline = time.monotonic() + _rank_refresh_interval
+                _rank_refresh_deadline = _next_rank_refresh_deadline()
 
 
 def _start_rank_refresh_worker() -> None:
-    global _rank_refresh_thread
+    global _rank_refresh_deadline, _rank_refresh_thread
     if _rank_refresh_thread and _rank_refresh_thread.is_alive():
         return
     _rank_refresh_stop.clear()
+    with _rank_refresh_lock:
+        _rank_refresh_deadline = _next_rank_refresh_deadline()
     _rank_refresh_thread = threading.Thread(
         target=_rank_refresh_worker, name="hourly-rank-refresh", daemon=True
     )
@@ -352,6 +366,11 @@ def riot_client_path() -> Path | None:
 @app.get("/")
 async def index():
     return FileResponse(ASSET_ROOT / "static" / "index.html")
+
+
+@app.get("/logo.png")
+async def application_logo():
+    return FileResponse(ASSET_ROOT / "logo.png", media_type="image/png")
 
 
 @app.get("/api/accounts")
