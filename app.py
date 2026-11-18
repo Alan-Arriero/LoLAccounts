@@ -5,6 +5,9 @@ import os
 import sqlite3
 import sys
 import threading
+import time
+import subprocess
+import asyncio
 from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import quote
@@ -32,6 +35,13 @@ KEYRING_SERVICE = "RiftVault.LoLAccounts"
 _ddragon_version: str | None = None
 _login_status_lock = threading.Lock()
 _login_statuses: dict[int, dict[str, str]] = {}
+_rank_refresh_interval = 60 * 60
+_rank_refresh_lock = threading.Lock()
+_rank_refresh_stop = threading.Event()
+_rank_refresh_thread: threading.Thread | None = None
+_rank_refresh_deadline = time.monotonic() + _rank_refresh_interval
+_rank_refreshing = False
+_rank_refresh_last_run: float | None = None
 
 
 def load_riot_api_key() -> str:
@@ -55,6 +65,7 @@ def connect() -> sqlite3.Connection:
 
 def init_db() -> None:
     with connect() as db:
+        db.execute("CREATE TABLE IF NOT EXISTS app_settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
         db.execute("""CREATE TABLE IF NOT EXISTS accounts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             game_name TEXT NOT NULL,
@@ -101,11 +112,132 @@ def init_db() -> None:
 async def lifespan(_: FastAPI):
     init_db()
     updater.start()
+    _start_rank_refresh_worker()
     yield
+    _rank_refresh_stop.set()
 
 
 app = FastAPI(title="Rift Vault", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=ASSET_ROOT / "static"), name="static")
+
+
+def _setting(key: str, default: str = "false") -> str:
+    with connect() as db:
+        row = db.execute("SELECT value FROM app_settings WHERE key=?", (key,)).fetchone()
+    return str(row["value"]) if row else default
+
+
+def _preferences() -> dict[str, bool]:
+    return {
+        "close_after_login": _setting("close_after_login") == "true",
+        "launch_on_windows": _setting("launch_on_windows") == "true",
+    }
+
+
+def _set_windows_autostart(enabled: bool) -> None:
+    if os.name != "nt":
+        raise HTTPException(501, "El inicio automático con Windows solo está disponible en Windows")
+    import winreg
+
+    key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
+    value_name = "RiftVault"
+    with winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_SET_VALUE) as key:
+        if enabled:
+            command = [str(Path(sys.executable).resolve())]
+            if not getattr(sys, "frozen", False):
+                command.append(str(Path(__file__).with_name("main.py").resolve()))
+            winreg.SetValueEx(key, value_name, 0, winreg.REG_SZ, subprocess.list2cmdline(command))
+        else:
+            try:
+                winreg.DeleteValue(key, value_name)
+            except FileNotFoundError:
+                pass
+
+
+class AppSettings(BaseModel):
+    close_after_login: bool
+    launch_on_windows: bool
+
+
+@app.get("/api/settings")
+async def get_settings():
+    return _preferences()
+
+
+@app.put("/api/settings")
+async def put_settings(payload: AppSettings):
+    current = _preferences()
+    if payload.launch_on_windows != current["launch_on_windows"]:
+        _set_windows_autostart(payload.launch_on_windows)
+    with connect() as db:
+        db.executemany(
+            "INSERT INTO app_settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            (("close_after_login", str(payload.close_after_login).lower()),
+             ("launch_on_windows", str(payload.launch_on_windows).lower())),
+        )
+    return _preferences()
+
+
+@app.get("/api/refresh/status")
+async def refresh_status():
+    with _rank_refresh_lock:
+        return {
+            "refreshing": _rank_refreshing,
+            "next_refresh_seconds": 0 if _rank_refreshing else max(0, int(_rank_refresh_deadline - time.monotonic())),
+            "last_refresh": _rank_refresh_last_run,
+        }
+
+
+async def _refresh_rank(account_id: int, puuid: str) -> None:
+    ranked = await riot_get(
+        f"https://euw1.api.riotgames.com/lol/league/v4/entries/by-puuid/{quote(puuid, safe='')}"
+    )
+    selected = next((entry for entry in ranked if entry.get("queueType") == "RANKED_SOLO_5x5"), None)
+    selected = selected or next((entry for entry in ranked if entry.get("queueType") == "RANKED_FLEX_SR"), None) or {}
+    with connect() as db:
+        db.execute("UPDATE accounts SET tier=?,rank=?,league_points=?,wins=?,losses=? WHERE id=?", (
+            selected.get("tier", "UNRANKED"), selected.get("rank", ""), selected.get("leaguePoints", 0),
+            selected.get("wins", 0), selected.get("losses", 0), account_id))
+
+
+async def _refresh_all_linked_accounts() -> None:
+    with connect() as db:
+        rows = db.execute("SELECT id,puuid FROM accounts WHERE puuid IS NOT NULL AND puuid!=''").fetchall()
+    for row in rows:
+        try:
+            await _refresh_rank(int(row["id"]), str(row["puuid"]))
+        except HTTPException:
+            continue
+
+
+def _rank_refresh_worker() -> None:
+    global _rank_refresh_deadline, _rank_refreshing, _rank_refresh_last_run
+    while not _rank_refresh_stop.is_set():
+        remaining = max(0, _rank_refresh_deadline - time.monotonic())
+        if _rank_refresh_stop.wait(remaining):
+            return
+        with _rank_refresh_lock:
+            _rank_refreshing = True
+        try:
+            asyncio.run(_refresh_all_linked_accounts())
+        except Exception:
+            pass
+        finally:
+            with _rank_refresh_lock:
+                _rank_refreshing = False
+                _rank_refresh_last_run = time.time()
+                _rank_refresh_deadline = time.monotonic() + _rank_refresh_interval
+
+
+def _start_rank_refresh_worker() -> None:
+    global _rank_refresh_thread
+    if _rank_refresh_thread and _rank_refresh_thread.is_alive():
+        return
+    _rank_refresh_stop.clear()
+    _rank_refresh_thread = threading.Thread(
+        target=_rank_refresh_worker, name="hourly-rank-refresh", daemon=True
+    )
+    _rank_refresh_thread.start()
 
 
 @app.get("/api/update/status")
@@ -337,15 +469,8 @@ async def refresh_account(account_id: int):
         raise HTTPException(404, "Cuenta no encontrada")
     if not row["puuid"]:
         raise HTTPException(409, "Añade el Riot ID y tag antes de actualizar el rango")
-    ranked = await riot_get(
-        f"https://euw1.api.riotgames.com/lol/league/v4/entries/by-puuid/{quote(row['puuid'], safe='')}"
-    )
-    selected = next((entry for entry in ranked if entry.get("queueType") == "RANKED_SOLO_5x5"), None)
-    selected = selected or next((entry for entry in ranked if entry.get("queueType") == "RANKED_FLEX_SR"), None) or {}
+    await _refresh_rank(account_id, str(row["puuid"]))
     with connect() as db:
-        db.execute("UPDATE accounts SET tier=?,rank=?,league_points=?,wins=?,losses=? WHERE id=?", (
-            selected.get("tier", "UNRANKED"), selected.get("rank", ""), selected.get("leaguePoints", 0),
-            selected.get("wins", 0), selected.get("losses", 0), account_id))
         return public(db.execute("SELECT * FROM accounts WHERE id=?", (account_id,)).fetchone())
 
 
@@ -371,16 +496,17 @@ async def login_account(account_id: int):
         if any(item["state"] in {"starting", "running", "verification"} for item in _login_statuses.values()):
             raise HTTPException(409, "Ya hay otro inicio de sesión en curso")
         _login_statuses[account_id] = {
-            "state": "starting", "step": "client", "message": "Preparando Riot Client…"
+            "state": "starting", "step": "client", "message": "Preparando Riot Client…", "progress": None
         }
 
     def worker() -> None:
-        def report(step: str, message: str) -> None:
+        def report(step: str, message: str, progress: float | None = None) -> None:
             with _login_status_lock:
                 _login_statuses[account_id] = {
                     "state": "verification" if step == "verification" else "running",
                     "step": step,
                     "message": message,
+                    "progress": progress,
                 }
         try:
             client = riot_client_path()
@@ -393,7 +519,7 @@ async def login_account(account_id: int):
         except Exception as exc:
             with _login_status_lock:
                 _login_statuses[account_id] = {
-                    "state": "error", "step": "error", "message": str(exc)
+                    "state": "error", "step": "error", "message": str(exc), "progress": None
                 }
 
     threading.Thread(target=worker, name=f"riot-login-{account_id}", daemon=True).start()
@@ -404,7 +530,7 @@ async def login_account(account_id: int):
 async def account_login_status(account_id: int):
     with _login_status_lock:
         return dict(_login_statuses.get(
-            account_id, {"state": "idle", "step": "", "message": ""}
+            account_id, {"state": "idle", "step": "", "message": "", "progress": None}
         ))
 @app.delete("/api/accounts/{account_id}", status_code=204)
 async def delete_account(account_id: int):

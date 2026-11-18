@@ -405,7 +405,7 @@ class Renderer:
 
 
 def _launch_and_wait(api: LocalRiotApi, username: str,
-                     report: Callable[[str, str], None]) -> None:
+                     report: Callable[..., None]) -> None:
     """Retry launch while Riot patches, then confirm the game client opened."""
     deadline = time.monotonic() + 1800
     verified_user = api.username()
@@ -416,6 +416,7 @@ def _launch_and_wait(api: LocalRiotApi, username: str,
     request_count = 0
     game_process_seen: float | None = None
     last_message = "Riot aceptó la sesión; esperando a que League of Legends se abra…"
+    last_progress: float | None = None
     while time.monotonic() < deadline:
         current_api = _local_api()
         if current_api and current_api.ready():
@@ -449,11 +450,13 @@ def _launch_and_wait(api: LocalRiotApi, username: str,
         active_update = state in {"Updating", "Repairing", "OutOfDate", "NeedsRepair"}
         if active_update:
             if isinstance(percent, (int, float)):
-                last_message = f"Riot está actualizando League of Legends ({max(0, min(100, percent)):.0f}%)."
+                last_progress = max(0.0, min(100.0, float(percent)))
             else:
-                last_message = "Riot está descargando o reparando League of Legends…"
+                last_progress = None
+            last_message = "Riot está actualizando League of Legends"
         else:
             last_message = "Riot aceptó la sesión; esperando a que League of Legends se abra…"
+            last_progress = None
 
         now = time.monotonic()
         if now >= next_request:
@@ -461,7 +464,8 @@ def _launch_and_wait(api: LocalRiotApi, username: str,
             status = api.launch_league()
             request_count += 1
             if status is None:
-                last_message = "Riot está iniciando League of Legends; esperando respuesta del cliente…"
+                if not active_update:
+                    last_message = "Riot está iniciando League of Legends; esperando respuesta del cliente…"
                 next_request = now + 3
             elif status in range(200, 300) or status == 423:
                 next_request = now + 6
@@ -469,14 +473,15 @@ def _launch_and_wait(api: LocalRiotApi, username: str,
                 # Riot uses 424 when it must patch the game before launch.
                 next_request = now + 3
                 active_update = True
-                last_message = "Riot está preparando una actualización de League of Legends…"
+                last_message = "Riot está actualizando League of Legends"
             elif status in {408, 429, 500, 502, 503, 504} or status == -1:
                 next_request = now + 3
-                last_message = "Riot Client está ocupado; volveré a solicitar el inicio de League…"
+                if not active_update:
+                    last_message = "Riot Client está ocupado; volveré a solicitar el inicio de League…"
             else:
                 raise LoginFailure(f"Riot rechazó abrir League of Legends (respuesta HTTP {status}).")
 
-        report("launch", last_message)
+        report("launch", last_message, last_progress if active_update else None)
         time.sleep(1)
     raise LoginFailure("Riot no llegó a abrir League of Legends. Comprueba el estado del cliente o su actualización.")
 
