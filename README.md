@@ -28,7 +28,7 @@ Al añadir una cuenta puedes guardar el usuario y la contraseña de Riot. La con
 
 ## Descargas y actualizaciones
 
-Cada tag v* genera una release pública de Windows en GitHub Actions. Extrae el ZIP y ejecuta Rift Vault.exe. Al iniciar, la app consulta la release pública más reciente (no la versión inmediatamente siguiente); si encuentra una versión nueva, la descarga con indicador de progreso y ofrece reiniciarse para instalarla. El actualizador conserva .env y league_accounts.db.
+Cada tag v* genera una release pública de Windows en GitHub Actions. Extrae el ZIP y ejecuta Rift Vault.exe. Al iniciar, la app consulta una sola vez la release pública más reciente (no la versión inmediatamente siguiente); no vuelve a buscar actualizaciones mientras permanece abierta. Si encuentra una versión nueva, la descarga con indicador de progreso y ofrece reiniciarse para instalarla. El actualizador conserva .env y league_accounts.db.
 
 Si una versión instalada no llega a abrir la interfaz, descarga e instala manualmente la release actual. Una vez que la aplicación inicia normalmente, las versiones posteriores pueden actualizarse automáticamente.
 

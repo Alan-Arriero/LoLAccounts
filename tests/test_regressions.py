@@ -8,7 +8,7 @@ import zipfile
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, Mock, patch
 from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
@@ -127,7 +127,7 @@ class AccountRegressionTests(unittest.IsolatedAsyncioTestCase):
 
 
 class UpdaterRegressionTests(unittest.TestCase):
-    def test_update_worker_rechecks_after_current_until_update_is_ready(self) -> None:
+    def test_update_worker_checks_only_once(self) -> None:
         checked_states = iter(("current", "ready"))
 
         def check_for_updates():
@@ -139,8 +139,21 @@ class UpdaterRegressionTests(unittest.TestCase):
         ):
             updater._update_worker()
 
-        self.assertEqual(check.call_count, 2)
-        sleep.assert_called_once_with(updater.UPDATE_CHECK_INTERVAL_SECONDS)
+        check.assert_called_once_with()
+        sleep.assert_not_called()
+
+    def test_start_does_not_restart_update_check_in_same_process(self) -> None:
+        worker = Mock()
+        with (
+            patch.object(updater.sys, "frozen", True, create=True),
+            patch.object(updater, "_worker", None),
+            patch.object(updater.threading, "Thread", return_value=worker) as thread_factory,
+        ):
+            updater.start()
+            updater.start()
+
+        thread_factory.assert_called_once_with(target=updater._update_worker, name="release-updater", daemon=True)
+        worker.start.assert_called_once_with()
 
     def test_downloads_latest_release_after_skipping_intermediate_versions(self) -> None:
         archive_buffer = io.BytesIO()
@@ -188,7 +201,7 @@ class UpdaterRegressionTests(unittest.TestCase):
             def get(self, url):
                 requested_urls.append(url)
                 return Response({
-                    "tag_name": "v0.2.31",
+                    "tag_name": "v0.2.32",
                     "assets": [{
                         "name": "LoLAccounts-windows-x64.zip",
                         "size": len(archive_bytes),
@@ -217,7 +230,7 @@ class UpdaterRegressionTests(unittest.TestCase):
         self.assertEqual(requested_urls[0], updater.API)
         self.assertEqual(requested_urls[1], "https://example.test/latest.zip")
         self.assertEqual(result["state"], "ready")
-        self.assertEqual(result["latest_version"], "v0.2.31")
+        self.assertEqual(result["latest_version"], "v0.2.32")
         self.assertEqual(Path(result["payload"]).name, "Rift Vault")
 
 

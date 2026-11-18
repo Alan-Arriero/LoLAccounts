@@ -15,8 +15,7 @@ import httpx
 
 OWNER = "Alan-Arriero"
 REPO = "LoLAccounts"
-CURRENT_VERSION = "0.2.30"
-UPDATE_CHECK_INTERVAL_SECONDS = 300
+CURRENT_VERSION = "0.2.31"
 EXECUTABLE_NAME = "Rift Vault.exe"
 API = f"https://api.github.com/repos/{OWNER}/{REPO}/releases/latest"
 ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
@@ -106,11 +105,7 @@ def _check_and_download() -> None:
 
 
 def _update_worker() -> None:
-    while True:
-        _check_and_download()
-        if status()["state"] == "ready":
-            return
-        time.sleep(UPDATE_CHECK_INTERVAL_SECONDS)
+    _check_and_download()
 
 
 def start() -> None:
@@ -118,7 +113,7 @@ def start() -> None:
     if not getattr(sys, "frozen", False):
         _set(state="current")
         return
-    if _worker and _worker.is_alive():
+    if _worker is not None:
         return
     _worker = threading.Thread(target=_update_worker, name="release-updater", daemon=True)
     _worker.start()

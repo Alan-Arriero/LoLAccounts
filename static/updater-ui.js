@@ -2,7 +2,6 @@
   const $=id=>document.getElementById(id),overlay=$('update-overlay');
   const text=(es,en)=>{try{return localStorage.getItem('rift-vault-language')==='en'?en:es}catch{return es}};
   let dismissed=false;
-  let previousState='';
   const hide=()=>{dismissed=true;overlay.classList.remove('visible');overlay.setAttribute('aria-hidden','true')};
   $('update-close').addEventListener('click',hide);
   $('update-apply').addEventListener('click',async()=>{
@@ -13,8 +12,6 @@
   async function poll(){
     try{
       const r=await fetch('/api/update/status',{cache:'no-store'}),s=await r.json();
-      if(s.state==='checking'&&['current','error'].includes(previousState))dismissed=false;
-      previousState=s.state;
       if(['checking','downloading','ready','error'].includes(s.state)&&!dismissed){overlay.classList.add('visible');overlay.setAttribute('aria-hidden','false')}
       if(s.state==='checking'){
         $('update-title').textContent=text('Buscando nuevas versiones','Checking for updates');
@@ -37,9 +34,10 @@
         $('update-title').textContent=text('No se pudo completar la actualización','Update could not be completed');
         $('update-message').textContent=s.error||(text('Comprueba tu conexión e inténtalo más tarde.','Check your connection and try again later.'));
         $('update-close').hidden=false;
+      }else if(s.state==='current'){
+        overlay.classList.remove('visible');overlay.setAttribute('aria-hidden','true');
       }
       if(s.state==='checking'||s.state==='downloading')setTimeout(poll,s.state==='downloading'?120:900);
-      else if(s.state==='current'||s.state==='error')setTimeout(poll,30000);
     }catch{setTimeout(poll,2500)}
   }
   poll();
