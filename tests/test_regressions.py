@@ -52,6 +52,26 @@ class AccountRegressionTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(Path(response.path), logo)
             self.assertEqual(response.media_type, "image/png")
 
+    async def test_accounts_per_row_setting_defaults_and_persists(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            database = Path(temporary) / "accounts.db"
+            with (
+                patch.object(app, "DB_PATH", database),
+                patch.object(app, "connect", side_effect=lambda: closing_connection(database)),
+            ):
+                app.init_db()
+                self.assertEqual((await app.get_settings())["accounts_per_row"], 3)
+
+                settings = app.AppSettings(
+                    close_after_login=False,
+                    launch_on_windows=False,
+                    language="es",
+                    accounts_per_row=4,
+                )
+                saved = await app.put_settings(settings)
+
+            self.assertEqual(saved["accounts_per_row"], 4)
+
     async def test_adds_a_second_account_without_an_euw_rank_entry(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             database = Path(temporary) / "accounts.db"
@@ -282,7 +302,7 @@ class UpdaterRegressionTests(unittest.TestCase):
             def get(self, url):
                 requested_urls.append(url)
                 return Response({
-                    "tag_name": "v0.2.34",
+                    "tag_name": "v0.2.35",
                     "assets": [{
                         "name": "LoLAccounts-windows-x64.zip",
                         "size": len(archive_bytes),
@@ -311,7 +331,7 @@ class UpdaterRegressionTests(unittest.TestCase):
         self.assertEqual(requested_urls[0], updater.API)
         self.assertEqual(requested_urls[1], "https://example.test/latest.zip")
         self.assertEqual(result["state"], "ready")
-        self.assertEqual(result["latest_version"], "v0.2.34")
+        self.assertEqual(result["latest_version"], "v0.2.35")
         self.assertEqual(Path(result["payload"]).name, "Rift Vault")
 
 

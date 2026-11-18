@@ -141,11 +141,12 @@ def _setting(key: str, default: str = "false") -> str:
     return str(row["value"]) if row else default
 
 
-def _preferences() -> dict[str, bool | str]:
+def _preferences() -> dict[str, bool | str | int]:
     return {
         "close_after_login": _setting("close_after_login") == "true",
         "launch_on_windows": _setting("launch_on_windows") == "true",
         "language": _setting("language", "es"),
+        "accounts_per_row": int(_setting("accounts_per_row", "3")),
     }
 
 
@@ -173,6 +174,7 @@ class AppSettings(BaseModel):
     close_after_login: bool
     launch_on_windows: bool
     language: Literal["es", "en"] = "es"
+    accounts_per_row: Literal[2, 3, 4] = 3
 
 
 @app.get("/api/settings")
@@ -190,7 +192,8 @@ async def put_settings(payload: AppSettings):
             "INSERT INTO app_settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
             (("close_after_login", str(payload.close_after_login).lower()),
              ("launch_on_windows", str(payload.launch_on_windows).lower()),
-             ("language", payload.language)),
+             ("language", payload.language),
+             ("accounts_per_row", str(payload.accounts_per_row))),
         )
     return _preferences()
 
