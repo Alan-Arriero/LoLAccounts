@@ -19,18 +19,18 @@
       if(s.state==='checking'){
         $('update-title').textContent=text('Buscando nuevas versiones','Checking for updates');
         $('update-message').textContent=text('Comprobando las releases públicas de GitHub...','Checking public GitHub releases...');
-        $('update-progress').style.width='22%';$('update-percent').textContent='···';
+        $('update-progress').style.setProperty('--progress','22%');$('update-percent').textContent='···';
       }else if(s.state==='downloading'){
         $('update-title').textContent=text('Descargando actualización','Downloading update');
         $('update-message').textContent=text('Rift Vault se actualizará al terminar la descarga.','Rift Vault will update when the download finishes.');
         const progress=Math.max(0,Math.min(99.9,Number(s.progress)||0));
-        $('update-progress').style.width=progress.toFixed(2)+'%';
+        $('update-progress').style.setProperty('--progress',progress.toFixed(2)+'%');
         $('update-percent').textContent=Math.floor(progress)+'%';
         $('update-version').textContent=s.latest_version||'';
       }else if(s.state==='ready'){
         $('update-title').textContent=text('Nueva versión lista','New version ready');
         $('update-message').textContent=text('La descarga terminó. Reinicia para instalarla automáticamente.','The download is complete. Restart to install it automatically.');
-        $('update-progress').style.width='100%';$('update-percent').textContent='100%';
+        $('update-progress').style.setProperty('--progress','100%');$('update-percent').textContent='100%';
         $('update-version').textContent=s.latest_version||'';
         $('update-apply').hidden=false;
       }else if(s.state==='error'){

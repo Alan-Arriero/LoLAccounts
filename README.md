@@ -4,7 +4,7 @@ Aplicación de escritorio local para gestionar cuentas de League of Legends en E
 
 Los rangos y LP se actualizan automáticamente cada hora en punto según la hora de España, también con el cambio entre horario de invierno y verano.
 
-Los emblemas Iron–Challenger proceden del paquete oficial [Ranked Emblems Latest de Riot](https://static.developer.riotgames.com/docs/lol/ranked-emblems-latest.zip). Riot no incluye un emblema Unranked en ese paquete; la interfaz lo presenta como Sin clasificar sin atribuirle una imagen oficial inexistente. El icono y la interfaz utilizan la imagen `image.png` de la raíz del proyecto; `logo.ico` se genera a partir de esa misma imagen.
+Los emblemas Iron–Challenger proceden del paquete oficial [Ranked Emblems Latest de Riot](https://static.developer.riotgames.com/docs/lol/ranked-emblems-latest.zip). El emblema y la miniatura de Sin clasificar proceden del cliente oficial de League of Legends, parche 16.20, y se sirven localmente; su origen está documentado en [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md). El icono y la interfaz utilizan la imagen `image.png` de la raíz del proyecto; `logo.ico` se genera a partir de esa misma imagen.
 
 ## Inicio de escritorio
 

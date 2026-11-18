@@ -1,5 +1,17 @@
 # Third-party notices
 
+## League of Legends rank artwork
+
+The Unranked emblem (`static/ranks/unranked.png`) and mini crest
+(`static/ranks/unranked.svg`) are Riot Games artwork from League of Legends client
+patch 16.20, distributed through the independent CommunityDragon archive:
+
+- https://raw.communitydragon.org/16.20/plugins/rcp-fe-lol-shared-components/global/default/unranked.png
+- https://raw.communitydragon.org/16.20/plugins/rcp-fe-lol-static-assets/global/default/ranked-mini-crests/unranked.svg
+
+Riot Games retains all rights to these assets. They are not covered by this
+repository's MIT license.
+
 ## LeagueAccounts integrations
 
 The button styling in static/lol-buttons.css adapts the League client-inspired button rules from
