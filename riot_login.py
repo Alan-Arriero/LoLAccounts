@@ -504,30 +504,37 @@ def run_login(client_path: Path, username: str, password: str,
               report: Callable[[str, str], None]) -> None:
     """Use Riot's own login renderer, verify the session and launch League."""
     root = client_path.parent
-    report("client", "Comprobando Riot Client…")
+    report("client", "Abriendo Riot Client…")
     was_running = bool(_client_processes(root))
     service_args = _service_args(root)
     api = _local_api()
     started_headless = False
+    report("wait_client", "Esperando a que Riot Client esté listo…")
     if not api or not api.ready():
-        report("client", "Iniciando el servicio de Riot Client…")
         try:
             _quiet_popen([str(client_path), "--headless", *service_args], root)
             started_headless = True
         except OSError as exc:
             raise LoginFailure("No se pudo iniciar Riot Client.") from exc
         try:
-            api = _wait_api(90, lambda message: report("client", message))
+            api = _wait_api(90, lambda message: report("wait_client", message))
         except LoginFailure:
             _restore_client(client_path, service_args, None, None)
             raise
+    else:
+        report("wait_client", "Riot Client ya está listo.")
 
     current = api.username()
+    report("signout", "Comprobando la sesión actual…")
     if current and current.casefold() == username.casefold():
         game = api.game_session() or {}
         game_user = str(game.get("username", "")).strip()
         if _league_is_running() and game_user and game_user.casefold() != username.casefold():
             _stop_league(report)
+        report("connect", "La sesión de Riot ya está conectada.")
+        report("find", "No hace falta abrir el formulario de inicio de sesión.")
+        report("credentials", "No hace falta volver a introducir las credenciales.")
+        report("verification", "Riot ya confirmó esta cuenta.")
         report("launch", "La cuenta ya está iniciada. Abriendo League of Legends…")
         _launch_and_wait(api, username, report)
         return
@@ -549,21 +556,20 @@ def run_login(client_path: Path, username: str, password: str,
     stopped = started_headless
     launched = False
     try:
-        report("credentials", "Preparando el formulario seguro de Riot Client…")
+        report("connect", "Conectando con el formulario de inicio de sesión…")
         if was_running or (not started_headless and _client_processes(root)):
             stopped = True
             _stop_client(root)
         if not started_headless:
-            report("client", "Iniciando Riot Client en modo de acceso…")
             try:
                 _quiet_popen([str(client_path), "--headless", *service_args], root)
             except OSError as exc:
                 raise LoginFailure("No se pudo iniciar Riot Client en modo de acceso.") from exc
-        api = _wait_api(60, lambda message: report("client", message))
+        api = _wait_api(60, lambda message: report("connect", message))
         if api.username():
             raise LoginFailure("Riot Client conservó otra sesión; inténtalo de nuevo.")
         renderer_path, renderer_args = _renderer_args(client_path, api)
-        report("credentials", "Cargando el formulario nativo de Riot…")
+        report("find", "Buscando la pantalla de inicio de sesión…")
         renderer.start(renderer_path, renderer_args)
         report("typing", "Introduciendo las credenciales guardadas…")
         values = json.dumps([username, password], ensure_ascii=False)

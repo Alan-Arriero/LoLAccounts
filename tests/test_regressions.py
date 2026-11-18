@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import io
+import json
 import sqlite3
 import tempfile
 import unittest
@@ -64,13 +65,54 @@ class AccountRegressionTests(unittest.IsolatedAsyncioTestCase):
 
                 settings = app.AppSettings(
                     close_after_login=False,
-                    launch_on_windows=False,
+                    launch_on_windows=True,
+                    launch_minimized=False,
                     language="es",
                     accounts_per_row=4,
                 )
-                saved = await app.put_settings(settings)
+                with patch.object(app, "_set_windows_autostart") as set_autostart:
+                    await app.put_settings(settings)
+                    set_autostart.assert_called_once_with(True, False)
+
+                settings.launch_minimized = True
+                with patch.object(app, "_set_windows_autostart") as set_autostart:
+                    saved = await app.put_settings(settings)
 
             self.assertEqual(saved["accounts_per_row"], 4)
+            self.assertTrue(saved["launch_minimized"])
+            set_autostart.assert_called_once_with(True, True)
+
+    async def test_password_endpoint_reads_keyring_without_caching_response(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            database = Path(temporary) / "accounts.db"
+            with (
+                patch.object(app, "DB_PATH", database),
+                patch.object(app, "connect", side_effect=lambda: closing_connection(database)),
+            ):
+                app.init_db()
+                with closing_connection(database) as db:
+                    cursor = db.execute(
+                        "INSERT INTO accounts(game_name, tag_line) VALUES(?, ?)",
+                        ("TestAccount", "EUW"),
+                    )
+                    account_id = cursor.lastrowid
+
+                with patch.object(
+                    app.keyring,
+                    "get_password",
+                    return_value=json.dumps({"username": "player", "password": "stored-secret"}),
+                ) as get_password:
+                    response = await app.account_password(account_id)
+
+                self.assertEqual(json.loads(response.body), {"password": "stored-secret"})
+                self.assertEqual(response.headers["cache-control"], "no-store")
+                self.assertEqual(response.headers["pragma"], "no-cache")
+                get_password.assert_called_once_with(app.KEYRING_SERVICE, str(account_id))
+                with patch.object(app.keyring, "get_password", return_value=None):
+                    with self.assertRaises(HTTPException) as raised:
+                        await app.account_password(account_id)
+
+            self.assertEqual(raised.exception.status_code, 409)
 
     async def test_adds_a_second_account_without_an_euw_rank_entry(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -302,7 +344,7 @@ class UpdaterRegressionTests(unittest.TestCase):
             def get(self, url):
                 requested_urls.append(url)
                 return Response({
-                    "tag_name": "v0.2.37",
+                    "tag_name": "v0.2.38",
                     "assets": [{
                         "name": "LoLAccounts-windows-x64.zip",
                         "size": len(archive_bytes),
@@ -331,7 +373,7 @@ class UpdaterRegressionTests(unittest.TestCase):
         self.assertEqual(requested_urls[0], updater.API)
         self.assertEqual(requested_urls[1], "https://example.test/latest.zip")
         self.assertEqual(result["state"], "ready")
-        self.assertEqual(result["latest_version"], "v0.2.37")
+        self.assertEqual(result["latest_version"], "v0.2.38")
         self.assertEqual(Path(result["payload"]).name, "Rift Vault")
 
 

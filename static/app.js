@@ -1,8 +1,11 @@
-const state={accounts:[],query:'',tier:'ALL',sort:'name',playWithQueue:'solo',playWithTier:null,settings:{close_after_login:false,launch_on_windows:false,language:'es',accounts_per_row:3},lastLoginCloseId:null,lastRankRefresh:null,refreshSeconds:3600,refreshing:false};
+const state={accounts:[],query:'',tier:'ALL',sort:'name',playWithQueue:'solo',playWithTier:null,settings:{close_after_login:false,launch_on_windows:false,launch_minimized:false,language:'es',accounts_per_row:3},loginAccountId:null,lastLoginCloseId:null,lastRankRefresh:null,refreshSeconds:3600,refreshing:false};
 const $=s=>document.querySelector(s);
+const loginStepIds=['#login-step-client','#login-step-wait','#login-step-signout','#login-step-connect','#login-step-find','#login-step-credentials','#login-step-verification','#login-step-league'];
 const tiers=['IRON','BRONZE','SILVER','GOLD','PLATINUM','EMERALD','DIAMOND','MASTER','GRANDMASTER','CHALLENGER'];
 const rankNames={es:{IRON:'Hierro',BRONZE:'Bronce',SILVER:'Plata',GOLD:'Oro',PLATINUM:'Platino',EMERALD:'Esmeralda',DIAMOND:'Diamante',MASTER:'Maestro',GRANDMASTER:'Gran maestro',CHALLENGER:'Retador',UNRANKED:'Sin clasificar'},en:{IRON:'Iron',BRONZE:'Bronze',SILVER:'Silver',GOLD:'Gold',PLATINUM:'Platinum',EMERALD:'Emerald',DIAMOND:'Diamond',MASTER:'Master',GRANDMASTER:'Grandmaster',CHALLENGER:'Challenger',UNRANKED:'Unranked'}};
 const messages={es:{filter:'FILTRAR POR ELO',all:'Todas',accounts:'CUENTAS',sortName:'Nombre A–Z',sortRank:'Rango',sortWinrate:'Porcentaje de victorias',search:'Buscar cuenta...',addAccount:'AÑADIR CUENTA',emptyTitle:'Aún no hay cuentas',emptyText:'Añade una cuenta EUW con tu Riot ID para consultar su rango.',addFirst:'AÑADIR PRIMERA CUENTA',footer:'RIOT GAMES NO ENDORSA NI PATROCINA ESTA APLICACIÓN.',newAccount:'NUEVA CUENTA',addDescription:'Añade el Riot ID ahora o vincúlalo más tarde para consultar el rango. Los dos campos son opcionales.',summonerName:'Nombre de invocador',username:'USUARIO O EMAIL DE RIOT',usernamePlaceholder:'Tu usuario de acceso',password:'CONTRASEÑA',passwordPlaceholder:'Contraseña de Riot',profileHint:'El Riot ID identifica el perfil; el usuario y contraseña sirven para iniciar sesión.',label:'ETIQUETA',optional:'OPCIONAL',credentialNote:'El acceso se guarda en el Administrador de credenciales de Windows.',addSubmit:'BUSCAR Y AÑADIR CUENTA',linkTitle:'VINCULAR CUENTA',linkDescription:'Escribe el Riot ID para consultar el rango de esta cuenta en EUW.',name:'NOMBRE',tag:'TAG',linkSubmit:'CONSULTAR Y VINCULAR',preferences:'PREFERENCIAS',settings:'Ajustes',settingsDescription:'Personaliza cómo se comporta Rift Vault.',closeAfterLogin:'Cerrar Rift Vault al iniciar sesión',closeAfterLoginHelp:'Cierra la app cuando League se haya abierto con la cuenta elegida.',launchWindows:'Abrir Rift Vault con Windows',launchWindowsHelp:'Inicia la app automáticamente al entrar en Windows.',language:'Idioma de la interfaz',saveSettings:'GUARDAR AJUSTES',settingsSaved:'Ajustes guardados',loginKicker:'INICIO DE SESIÓN',loginDescription:'Iniciando sesión automáticamente…',stepClient:'Abrir Riot Client',stepClientHelp:'Preparando el cliente de Riot',stepSwitch:'Cambiar de cuenta',stepSwitchHelp:'Cerrando la sesión anterior si hace falta',stepCredentials:'Introducir credenciales',stepCredentialsHelp:'Usando los datos guardados de forma segura',stepVerify:'Verificar acceso',stepVerifyHelp:'Confirmando la cuenta con Riot',stepLeague:'Abrir League of Legends',stepLeagueHelp:'Iniciando el juego con la cuenta elegida',back:'Volver',progressLabel:'Progreso de actualización de League of Legends',riotUpdating:'Riot está actualizando League of Legends',allGames:'Sin partidas clasificatorias',soloRanked:'CLASIFICATORIA SOLO/DUO',unrankedLabel:'SIN CLASIFICAR',copy:'▣ COPIAR RIOT ID',link:'＋ VINCULAR RIOT ID',login:'INICIAR SESIÓN',refresh:'↻ Actualizar rango',editRiot:'✎ Editar Riot ID',editLabel:'✎ Editar etiqueta',deleteAccount:'⌫ Eliminar cuenta',refreshTimer:'ACTUALIZACIÓN EN',refreshing:'ACTUALIZANDO RANGOS',updating:'Riot está actualizando League of Legends',process:'Procesando…',copied:'Riot ID copiado: ',copyFailed:'No se pudo copiar el Riot ID',noRiotId:'Esta cuenta no tiene un Riot ID vinculado',noFilterTitle:'No hay cuentas con esos filtros',noFilterText:'Cambia el elo seleccionado o prueba otro nombre.',showAll:'MOSTRAR TODAS',main:'Main, Smurf, Flex...',updatingRange:'Actualizando rango desde Riot',rankUpdated:'Rango actualizado desde Riot',linked:'Riot ID vinculado y rango actualizado',added:' añadida',enterLabel:'Etiqueta de la cuenta (opcional):'},en:{filter:'FILTER BY RANK',all:'All',accounts:'ACCOUNTS',sortName:'Name A–Z',sortRank:'Rank',sortWinrate:'Win rate',search:'Search accounts...',addAccount:'ADD ACCOUNT',emptyTitle:'No accounts yet',emptyText:'Add an EUW account with a Riot ID to view its rank.',addFirst:'ADD YOUR FIRST ACCOUNT',footer:'RIOT GAMES DOES NOT ENDORSE OR SPONSOR THIS APP.',newAccount:'NEW ACCOUNT',addDescription:'Add a Riot ID now or link it later to view the rank. Both fields are optional.',summonerName:'Summoner name',username:'RIOT USERNAME OR EMAIL',usernamePlaceholder:'Your sign-in username',password:'PASSWORD',passwordPlaceholder:'Riot password',profileHint:'The Riot ID identifies the profile; username and password are used to sign in.',label:'LABEL',optional:'OPTIONAL',credentialNote:'Credentials are stored in Windows Credential Manager.',addSubmit:'LOOK UP AND ADD ACCOUNT',linkTitle:'LINK ACCOUNT',linkDescription:'Enter the Riot ID to look up this account’s EUW rank.',name:'NAME',tag:'TAG',linkSubmit:'LOOK UP AND LINK',preferences:'PREFERENCES',settings:'Settings',settingsDescription:'Choose how Rift Vault behaves.',closeAfterLogin:'Close Rift Vault after sign-in',closeAfterLoginHelp:'Close the app after League opens with the selected account.',launchWindows:'Launch Rift Vault with Windows',launchWindowsHelp:'Start the app automatically when you sign in to Windows.',language:'Interface language',saveSettings:'SAVE SETTINGS',settingsSaved:'Settings saved',loginKicker:'SIGNING IN',loginDescription:'Signing in automatically…',stepClient:'Open Riot Client',stepClientHelp:'Preparing Riot Client',stepSwitch:'Switch account',stepSwitchHelp:'Signing out of the previous account if needed',stepCredentials:'Enter credentials',stepCredentialsHelp:'Using the saved credentials securely',stepVerify:'Verify access',stepVerifyHelp:'Confirming the account with Riot',stepLeague:'Open League of Legends',stepLeagueHelp:'Starting the game with the selected account',back:'Back',progressLabel:'League of Legends update progress',riotUpdating:'Riot is updating League of Legends',allGames:'No ranked games',soloRanked:'RANKED SOLO/DUO',unrankedLabel:'UNRANKED',copy:'▣ COPY RIOT ID',link:'＋ LINK RIOT ID',login:'SIGN IN',refresh:'↻ Refresh rank',editRiot:'✎ Edit Riot ID',editLabel:'✎ Edit label',deleteAccount:'⌫ Delete account',refreshTimer:'RANKS UPDATE IN',refreshing:'UPDATING RANKS',updating:'Riot is updating League of Legends',process:'Working…',copied:'Riot ID copied: ',copyFailed:'Could not copy Riot ID',noRiotId:'This account has no linked Riot ID',noFilterTitle:'No accounts match these filters',noFilterText:'Change the selected rank or try another name.',showAll:'SHOW ALL',main:'Main, Smurf, Flex...',updatingRange:'Updating rank from Riot',rankUpdated:'Rank updated from Riot',linked:'Riot ID linked and rank updated',added:' added',enterLabel:'Account label (optional):'}};
+Object.assign(messages.es,{copyPassword:'▣ COPIAR CONTRASEÑA',passwordCopied:'Contraseña copiada al portapapeles',passwordCopyFailed:'No se pudo copiar la contraseña',launchMinimized:'Iniciar minimizado',launchMinimizedHelp:'Iniciar Rift Vault con la ventana minimizada.',loginSuccess:'Has iniciado sesión con esta cuenta',rankUnranked:'Sin clasificar'});
+Object.assign(messages.en,{copyPassword:'▣ COPY PASSWORD',passwordCopied:'Password copied to clipboard',passwordCopyFailed:'Could not copy the password',launchMinimized:'Start minimized',launchMinimizedHelp:'Start Rift Vault with its window minimized.',loginSuccess:'You have signed in with this account',rankUnranked:'Unranked'});
 const playWithMessages={es:{playWith:'Puede jugar con',playWithTitle:'PUEDE JUGAR CON',queueSolo:'Solo/Duo',queueFlex:'Flex',clearPlayWith:'Quitar filtro',soloRulesNote:'Compatibilidad estimada según rango visible. El MMR oculto puede imponer límites adicionales.',flexRulesNote:'En Flex no hay restricciones de rango hasta Diamante; para jugar con Maestro o superior se necesita Esmeralda.',flexRanked:'CLASIFICATORIA FLEX'},en:{playWith:'Can play with',playWithTitle:'CAN PLAY WITH',queueSolo:'Solo/Duo',queueFlex:'Flex',clearPlayWith:'Clear filter',soloRulesNote:'Estimated from visible rank. Hidden MMR may add restrictions.',flexRulesNote:'Flex has no rank restrictions through Diamond; playing with Master or above requires Emerald.',flexRanked:'RANKED FLEX'}};
 const tr=key=>(playWithMessages[state.settings.language||'es']||playWithMessages.es)[key]||(messages[state.settings.language||'es']||messages.es)[key]||messages.es[key]||key;
 const tierName=key=>(rankNames[state.settings.language||'es']||rankNames.es)[key]||key;
@@ -24,7 +27,7 @@ function applyLanguage(){
   $('#login-modal .modal-kicker').innerHTML='<span>◈</span> '+tr('loginKicker');$('#login-description').textContent=tr('loginDescription');$('#login-step-client b').textContent=tr('stepClient');$('#login-step-client small').textContent=tr('stepClientHelp');$('#login-step-signout b').textContent=tr('stepSwitch');$('#login-step-signout small').textContent=tr('stepSwitchHelp');$('#login-step-credentials b').textContent=tr('stepCredentials');$('#login-step-credentials small').textContent=tr('stepCredentialsHelp');$('#login-step-verification b').textContent=tr('stepVerify');$('#login-step-verification small').textContent=tr('stepVerifyHelp');$('#login-step-league b').textContent=tr('stepLeague');$('#login-step-league small').textContent=tr('stepLeagueHelp');$('#login-close-app').textContent=tr('back');$('#login-update-progress [role="progressbar"]').setAttribute('aria-label',tr('progressLabel'));
   $('#update-title').textContent=en?'Preparing the new version':'Preparando la nueva versión';$('#update-message').textContent=en?'Checking for a newer version...':'Buscando una versión más reciente...';$('#update-apply').textContent=en?'RESTART':'REINICIAR';$('#update-close').textContent=en?'Continue with this version':'Continuar con esta versión';
   document.querySelectorAll('.modal-close').forEach(button=>button.setAttribute('aria-label',en?'Close':'Cerrar'));
-  $('#settings-language').value=en?'en':'es';if(state.accounts.length)render();paintRefreshTimer();
+  $('#settings-language').value=en?'en':'es';if(state.accounts.length)render();paintRefreshTimer();applyLoginStepLabels();$('#setting-launch-minimized-option .setting-copy b').textContent=tr('launchMinimized');$('#setting-launch-minimized-option .setting-copy small').textContent=tr('launchMinimizedHelp');
   updatePlayWithButton();renderPlayWithOptions();
 }
 function tier(a){return a.tier&&tiers.includes(a.tier)?a.tier:'UNRANKED'}
@@ -57,6 +60,7 @@ function rankProgress(a){
 }
 function renderFilters(){const n=Object.fromEntries([...tiers,'UNRANKED'].map(t=>[t,0]));state.accounts.forEach(a=>n[tier(a)]++);const rows=[['ALL',tr('all'),null],['UNRANKED',tierName('UNRANKED'),'unranked.png'],...tiers.map(t=>[t,tierName(t),t.toLowerCase()+'.png'])];$('#rank-filters').innerHTML=rows.map(r=>'<button class="rank-filter '+(state.tier===r[0]?'selected':'')+'" data-tier="'+r[0]+'" title="'+esc(r[1])+'" '+(r[0]==='ALL'?'aria-label="'+esc(tr('all'))+'"':'')+'>'+(r[2]?'<img src="/static/ranks/'+r[2]+'" alt="">':'<span class="'+(r[0]==='ALL'?'rank-filter-all':'rank-filter-unranked')+'">'+(r[0]==='ALL'?esc(tr('all')):'—')+'</span>')+(r[0]==='ALL'?'':'<span>'+esc(r[1])+'</span>')+'<b>'+(r[0]==='ALL'?state.accounts.length:n[r[0]])+'</b></button>').join('')}
 function menuAction(attribute,id,key,icon){return '<button type="button" '+attribute+'="'+Number(id)+'"><span class="account-menu-icon" aria-hidden="true">'+icon+'</span><span>'+esc(tr(key).slice(2))+'</span></button>'}
+function passwordMenuAction(id){return '<button type="button" data-copy-password="'+Number(id)+'"><span class="account-menu-icon" aria-hidden="true">▣</span><span>'+esc(tr('copyPassword').slice(2))+'</span></button>'}
 function card(a){
   const total=(a.wins||0)+(a.losses||0),wr=total?Math.round(a.wins*100/total):0,u=tier(a)==='UNRANKED';
   const name=String(a.game_name||'').trim(),tag=String(a.tag_line||'').trim(),hasId=Boolean(a.has_riot_id&&name&&tag);
@@ -75,6 +79,7 @@ function render(){
   else if(state.sort==='winrate')list.sort((a,b)=>{const x=(a.wins||0)+(a.losses||0),y=(b.wins||0)+(b.losses||0);return(y?(b.wins||0)/y:0)-(x?(a.wins||0)/x:0)});
   else list.sort((a,b)=>(a.game_name||'').localeCompare(b.game_name||''));
   $('#accounts').innerHTML=list.map(card).join('');
+  document.querySelectorAll('.account-menu').forEach(menu=>menu.insertAdjacentHTML('beforeend',passwordMenuAction(menu.id.slice(5))));
   $('#accounts').style.setProperty('--account-columns',String(state.settings.accounts_per_row||3));
   $('#accounts').style.display=list.length?'grid':'none';
   $('#empty-state').classList.toggle('visible',all.length===0);
@@ -87,13 +92,77 @@ async function load(){try{state.accounts=await api('/api/accounts');render()}cat
 function error(text,id='#form-error'){const el=$(id);el.textContent=localize(text);el.classList.add('visible')}
 function clearError(id='#form-error'){const el=$(id);el.textContent='';el.classList.remove('visible')}
 function setLoginStep(id,status){const el=$(id),current=['active','complete','failed'].find(name=>el.classList.contains(name));if(current===status)return;if(current)el.classList.remove(current);if(status)el.classList.add(status)}
-function loginMessage(message){if(state.settings.language!=='en')return message;const translations=[['Riot está actualizando League of Legends','Riot is updating League of Legends'],['Riot aceptó la sesión; esperando a que League of Legends se abra…','Riot accepted the sign-in; waiting for League of Legends to open…'],['Riot confirmó la cuenta. Abriendo League of Legends…','Riot confirmed the account. Opening League of Legends…'],['La cuenta ya está iniciada. Abriendo League of Legends…','This account is already signed in. Opening League of Legends…'],['League of Legends está abierto con la cuenta seleccionada.','League of Legends is open with the selected account.'],['El cliente de League of Legends está abierto con la cuenta seleccionada.','The League of Legends client is open with the selected account.'],['Abriendo Riot Client…','Opening Riot Client…'],['Preparando Riot Client…','Preparing Riot Client…'],['Comprobando Riot Client…','Checking Riot Client…'],['Cerrando la sesión anterior de Riot…','Signing out of the previous Riot account…'],['Cerrando League of Legends antes de cambiar de cuenta…','Closing League of Legends before switching accounts…'],['Preparando el formulario seguro de Riot Client…','Preparing Riot Client’s secure sign-in form…'],['Cargando el formulario nativo de Riot…','Loading Riot’s native sign-in form…'],['Introduciendo las credenciales guardadas…','Entering the saved credentials…'],['Esperando la confirmación de Riot…','Waiting for Riot to confirm…'],['Riot requiere MFA o CAPTCHA. Complétalo en la ventana de Riot Client.','Riot requires MFA or CAPTCHA. Complete it in the Riot Client window.']];for(const [es,en] of translations)if(message.startsWith(es))return en+message.slice(es.length);return localize(message)}
+function applyLoginStepLabels(){
+  const en=state.settings.language==='en';
+  const labels=en?[
+    ['Open Riot Client','Start the Riot sign-in client'],
+    ['Wait for Riot Client','Wait until its services are ready'],
+    ['Close the current session','Sign out of the previous account if needed'],
+    ['Connect to sign-in','Prepare Riot Client for authentication'],
+    ['Find the sign-in screen','Open Riot’s native sign-in form'],
+    ['Enter saved credentials','Fill in the securely stored credentials'],
+    ['Verify the account','Complete any Riot security checks'],
+    ['Launch League of Legends','Open the game with the selected account'],
+  ]:[
+    ['Abrir Riot Client','Iniciar el cliente de Riot'],
+    ['Esperar a Riot Client','Esperar a que sus servicios estén listos'],
+    ['Cerrar la sesión actual','Salir de la cuenta anterior si hace falta'],
+    ['Conectar con el acceso','Preparar Riot Client para autenticarte'],
+    ['Buscar la pantalla de acceso','Abrir el formulario nativo de Riot'],
+    ['Introducir las credenciales','Rellenar los datos guardados de forma segura'],
+    ['Verificar la cuenta','Completar las comprobaciones de seguridad de Riot'],
+    ['Abrir League of Legends','Iniciar el juego con la cuenta elegida'],
+  ];
+  loginStepIds.forEach((id,index)=>{$(id+' b').textContent=labels[index][0];$(id+' small').textContent=labels[index][1]});
+}
+function loginMessage(message){
+  if(state.settings.language!=='en')return message;
+  const translations=[
+    ['Riot está actualizando League of Legends','Riot is updating League of Legends'],
+    ['Riot aceptó la sesión; esperando a que League of Legends se abra…','Riot accepted the sign-in; waiting for League of Legends to open…'],
+    ['Riot confirmó la cuenta. Abriendo League of Legends…','Riot confirmed the account. Opening League of Legends…'],
+    ['La cuenta ya está iniciada. Abriendo League of Legends…','This account is already signed in. Opening League of Legends…'],
+    ['League of Legends está abierto con la cuenta seleccionada.','League of Legends is open with the selected account.'],
+    ['El cliente de League of Legends está abierto con la cuenta seleccionada.','The League of Legends client is open with the selected account.'],
+    ['Abriendo Riot Client…','Opening Riot Client…'],
+    ['Preparando Riot Client…','Preparing Riot Client…'],
+    ['Comprobando Riot Client…','Checking Riot Client…'],
+    ['Esperando a que Riot Client esté listo…','Waiting for Riot Client to be ready…'],
+    ['Esperando a que Riot Client prepare la sesión…','Waiting for Riot Client to prepare the session…'],
+    ['Riot Client ya está listo.','Riot Client is ready.'],
+    ['Comprobando la sesión actual…','Checking the current session…'],
+    ['Cerrando la sesión anterior de Riot…','Signing out of the previous Riot account…'],
+    ['Cerrando League of Legends antes de cambiar de cuenta…','Closing League of Legends before switching accounts…'],
+    ['Conectando con el formulario de inicio de sesión…','Connecting to the sign-in form…'],
+    ['Buscando la pantalla de inicio de sesión…','Looking for the sign-in screen…'],
+    ['No hace falta abrir el formulario de inicio de sesión.','The sign-in form is not needed.'],
+    ['La sesión de Riot ya está conectada.','Riot is already connected.'],
+    ['No hace falta volver a introducir las credenciales.','There is no need to re-enter credentials.'],
+    ['Riot ya confirmó esta cuenta.','Riot has already verified this account.'],
+    ['Preparando el formulario seguro de Riot Client…','Preparing Riot Client’s secure sign-in form…'],
+    ['Cargando el formulario nativo de Riot…','Loading Riot’s native sign-in form…'],
+    ['Introduciendo las credenciales guardadas…','Entering the saved credentials…'],
+    ['Esperando la confirmación de Riot…','Waiting for Riot to confirm…'],
+    ['Riot requiere MFA o CAPTCHA. Complétalo en la ventana de Riot Client.','Riot requires MFA or CAPTCHA. Complete it in the Riot Client window.'],
+  ];
+  for(const [es,en] of translations)if(message.startsWith(es))return en+message.slice(es.length);
+  return localize(message);
+}
 function paintLoginStatus(s){
-  const step=s.step||'client',terminal=['success','error'].includes(s.state),stage={client:0,signout:1,credentials:2,typing:2,verification:3,launch:4,success:5},current=stage[step]??0;
-  const selectors=['#login-step-client','#login-step-signout','#login-step-credentials','#login-step-verification','#login-step-league'];
-  selectors.forEach((selector,index)=>{const status=s.state==='success'||index<current?'complete':index===current&&!terminal?'active':'';setLoginStep(selector,status);$(selector+' .step-indicator').textContent=status==='complete'?'✓':String(index+1).padStart(2,'0')});
-  if(s.state==='error'){const failedStep=selectors[stage[step]??0];setLoginStep(failedStep,'failed');$(failedStep+' .step-indicator').textContent='!'}
-  $('#login-description').textContent=s.state==='success'?(state.settings.language==='en'?'Riot confirmed sign-in.':'Riot confirmó el inicio de sesión.'):s.state==='error'?(state.settings.language==='en'?'Sign-in could not be completed.':'No se pudo completar el inicio de sesión.'):tr('loginDescription');
+  const step=s.step||'client',terminal=['success','error'].includes(s.state),stage={client:0,wait_client:1,signout:2,connect:3,find:4,credentials:5,typing:5,verification:6,launch:7,success:8},current=stage[step]??0;
+  loginStepIds.forEach((selector,index)=>{const status=s.state==='success'||index<current?'complete':index===current&&!terminal?'active':'';setLoginStep(selector,status);$(selector+' .step-indicator').textContent=status==='complete'?'✓':String(index+1).padStart(2,'0')});
+  if(s.state==='error'){const failedStep=loginStepIds[stage[step]??0];setLoginStep(failedStep,'failed');$(failedStep+' .step-indicator').textContent='!'}
+  $('#login-description').textContent=s.state==='success'?'':s.state==='error'?(state.settings.language==='en'?'Sign-in could not be completed.':'No se pudo completar el inicio de sesión.'):tr('loginDescription');
+  $('#login-success').hidden=s.state!=='success';
+  if(s.state==='success'){
+    const account=state.accounts.find(item=>item.id===Number(state.loginAccountId)),rankTier=account?tier(account):'UNRANKED',rankLabel=rankTier==='UNRANKED'?tr('rankUnranked'):tierName(rankTier)+(account?.rank?' '+account.rank:'');
+    const emblem=$('#login-success-rank-icon');
+    emblem.src='/static/ranks/'+(rankTier==='UNRANKED'?'unranked':rankTier.toLowerCase())+'.png';
+    emblem.alt=rankLabel;
+    $('#login-success-rank-label').textContent=rankLabel;
+    $('#login-success-title').textContent=tr('loginSuccess');
+    $('#login-success-account').textContent=account?(account.has_riot_id?account.game_name+'#'+account.tag_line:account.game_name):(state.settings.language==='en'?'Selected account':'Cuenta seleccionada');
+  }
   const isUpdating=step==='launch'&&String(s.message||'').toLowerCase().includes('actualizando league of legends');
   $('#login-live-status').textContent=loginMessage(s.message||tr('process'));
   const progressBox=$('#login-update-progress'),progress=Number(s.progress),hasProgress=isUpdating&&s.progress!==null&&s.progress!==undefined&&Number.isFinite(progress);
@@ -112,25 +181,43 @@ async function pollLoginStatus(id){
 async function beginLogin(id){
   await loadSettings();
   state.lastLoginCloseId=null;
+  state.loginAccountId=Number(id);
   const account=state.accounts.find(a=>a.id===Number(id));
   $('#login-account-name').textContent=(account?.game_name||(state.settings.language==='en'?'ACCOUNT':'CUENTA'))+(account?.has_riot_id?'#'+account.tag_line:'');
   $('#login-description').textContent=tr('loginDescription');
   $('#login-live-status').textContent=state.settings.language==='en'?'Opening Riot Client…':'Abriendo Riot Client…';
   $('#login-update-progress').hidden=true;$('#login-update-progress').classList.remove('indeterminate');
-  $('#login-close-app').hidden=true;
-  for(const step of ['#login-step-client','#login-step-signout','#login-step-credentials','#login-step-verification','#login-step-league'])setLoginStep(step,'');
+  $('#login-close-app').hidden=true;$('#login-success').hidden=true;
+  for(const step of loginStepIds)setLoginStep(step,'');
   setLoginStep('#login-step-client','active');
   openModal('#login-modal','#login-backdrop');
   try{await api('/api/accounts/'+id+'/login',{method:'POST'});pollLoginStatus(id)}
   catch(e){paintLoginStatus({state:'error',step:'client',message:e.message})}
 }
 async function loadSettings(){try{state.settings=await api('/api/settings');applyLanguage()}catch(e){toast(e.message)}}
-function openSettings(){clearError('#settings-error');$('#setting-close-after-login').checked=state.settings.close_after_login;$('#setting-launch-windows').checked=state.settings.launch_on_windows;$('#settings-language').value=state.settings.language||'es';$('#setting-accounts-per-row').value=String(state.settings.accounts_per_row||3);openModal('#settings-modal','#settings-backdrop')}
-async function saveSettings(){const button=$('#settings-save');button.disabled=true;clearError('#settings-error');try{state.settings=await api('/api/settings',{method:'PUT',body:JSON.stringify({close_after_login:$('#setting-close-after-login').checked,launch_on_windows:$('#setting-launch-windows').checked,language:$('#settings-language').value,accounts_per_row:Number($('#setting-accounts-per-row').value)})});applyLanguage();closeModal($('#settings-backdrop'));toast(tr('settingsSaved'))}catch(e){error(e.message,'#settings-error')}finally{button.disabled=false}}
+function updateLaunchMinimizedVisibility(){$('#setting-launch-minimized-option').hidden=!$('#setting-launch-windows').checked}
+$('#setting-launch-windows').addEventListener('change',updateLaunchMinimizedVisibility);
+function openSettings(){clearError('#settings-error');$('#setting-close-after-login').checked=state.settings.close_after_login;$('#setting-launch-windows').checked=state.settings.launch_on_windows;$('#setting-launch-minimized').checked=state.settings.launch_minimized;updateLaunchMinimizedVisibility();$('#settings-language').value=state.settings.language||'es';$('#setting-accounts-per-row').value=String(state.settings.accounts_per_row||3);openModal('#settings-modal','#settings-backdrop')}
+async function saveSettings(){const button=$('#settings-save');button.disabled=true;clearError('#settings-error');try{state.settings=await api('/api/settings',{method:'PUT',body:JSON.stringify({close_after_login:$('#setting-close-after-login').checked,launch_on_windows:$('#setting-launch-windows').checked,launch_minimized:$('#setting-launch-minimized').checked,language:$('#settings-language').value,accounts_per_row:Number($('#setting-accounts-per-row').value)})});applyLanguage();closeModal($('#settings-backdrop'));toast(tr('settingsSaved'))}catch(e){error(e.message,'#settings-error')}finally{button.disabled=false}}
 function paintRefreshTimer(){const label=$('#refresh-timer-label'),clock=$('#refresh-countdown');if(!label||!clock)return;if(state.refreshing){label.textContent=tr('refreshing');clock.textContent='···';return}label.textContent=tr('refreshTimer');const seconds=Math.max(0,state.refreshSeconds),minutes=String(Math.floor(seconds/60)).padStart(2,'0'),remaining=String(seconds%60).padStart(2,'0');clock.textContent=minutes+':'+remaining}
 async function syncRefreshStatus(){try{const status=await api('/api/refresh/status');state.refreshing=Boolean(status.refreshing);if(!state.refreshing)state.refreshSeconds=Number(status.next_refresh_seconds)||0;if(status.last_refresh&&status.last_refresh!==state.lastRankRefresh){state.lastRankRefresh=status.last_refresh;await load()}paintRefreshTimer()}catch{}}
 function editRiotId(id){const account=state.accounts.find(a=>a.id===Number(id));if(!account)return;state.editingAccountId=Number(id);$('#edit-riot-name').value=account.has_riot_id?account.game_name:'';$('#edit-riot-tag').value=account.has_riot_id?account.tag_line:'';clearError('#riot-id-error');$('#riot-id-submit-text').textContent=tr('linkSubmit');openModal('#riot-id-modal','#riot-id-backdrop')}
-async function copyRiotId(value){try{await navigator.clipboard.writeText(value);toast(tr('copied')+value)}catch{const input=document.createElement('textarea');input.value=value;document.body.appendChild(input);try{input.focus();input.select();const ok=document.execCommand('copy');toast(ok?tr('copied')+value:tr('copyFailed'))}catch{toast(tr('copyFailed'))}finally{input.remove()}}}
+async function writeClipboard(value){
+  try{if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(value);return}}
+  catch{}
+  const input=document.createElement('textarea');input.value=value;input.setAttribute('readonly','');input.style.position='fixed';input.style.opacity='0';document.body.appendChild(input);
+  try{input.focus();input.select();if(!document.execCommand('copy'))throw Error('Clipboard write failed')}
+  finally{input.remove()}
+}
+async function copyRiotId(value){try{await writeClipboard(value);toast(tr('copied')+value)}catch{toast(tr('copyFailed'))}}
+async function copyAccountPassword(id){
+  try{
+    const result=await api('/api/accounts/'+id+'/password',{method:'POST'});
+    try{await writeClipboard(result.password)}catch{toast(tr('passwordCopyFailed'));return}
+    toast(tr('passwordCopied'));
+  }catch(error){toast(error.message)}
+}
+document.addEventListener('click',async event=>{const button=event.target.closest('[data-copy-password]');if(button){event.preventDefault();await copyAccountPassword(button.dataset.copyPassword)}});
 document.addEventListener('click',e=>{
   const target=e.target;
   if(!target.closest('.play-with-filter'))closePlayWithPopover();

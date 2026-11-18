@@ -19,7 +19,7 @@
   color: var(--cyan);
 }
 
-.login-modal { width: min(100%, 560px); }
+.login-modal { width: min(100%, 560px); max-height: calc(100vh - 40px); overflow-y: auto; }
 
 .login-modal h2 {
   margin: 12px 0 5px;
@@ -66,28 +66,49 @@
   --step-wash: rgba(85,183,255,.09);
   --step-active-wash: rgba(85,183,255,.2);
   --step-line: rgba(85,183,255,.3);
-  --step-indent: 7%;
+  --step-indent: 3.5%;
 }
 .login-step:nth-child(3) {
   --step-accent: #b183ff;
   --step-wash: rgba(177,131,255,.09);
   --step-active-wash: rgba(177,131,255,.2);
   --step-line: rgba(177,131,255,.3);
-  --step-indent: 14%;
+  --step-indent: 7%;
 }
 .login-step:nth-child(4) {
   --step-accent: #ff65d5;
   --step-wash: rgba(255,101,213,.09);
   --step-active-wash: rgba(255,101,213,.2);
   --step-line: rgba(255,101,213,.3);
-  --step-indent: 21%;
+  --step-indent: 10.5%;
 }
 .login-step:nth-child(5) {
   --step-accent: #ff7896;
   --step-wash: rgba(255,120,150,.09);
   --step-active-wash: rgba(255,120,150,.2);
   --step-line: rgba(255,120,150,.3);
-  --step-indent: 28%;
+  --step-indent: 14%;
+}
+.login-step:nth-child(6) {
+  --step-accent: #ffae57;
+  --step-wash: rgba(255,174,87,.09);
+  --step-active-wash: rgba(255,174,87,.2);
+  --step-line: rgba(255,174,87,.3);
+  --step-indent: 17.5%;
+}
+.login-step:nth-child(7) {
+  --step-accent: #f4e469;
+  --step-wash: rgba(244,228,105,.09);
+  --step-active-wash: rgba(244,228,105,.2);
+  --step-line: rgba(244,228,105,.3);
+  --step-indent: 21%;
+}
+.login-step:nth-child(8) {
+  --step-accent: #72f5a3;
+  --step-wash: rgba(114,245,163,.09);
+  --step-active-wash: rgba(114,245,163,.2);
+  --step-line: rgba(114,245,163,.3);
+  --step-indent: 24.5%;
 }
 
 .login-step::before {
@@ -178,11 +199,32 @@
   .step-indicator { font-size: 24px; }
   .login-step b { font-size: 9px; }
   .login-step small { font-size: 7px; }
-  .login-step:nth-child(2) { --step-indent: 6%; }
-  .login-step:nth-child(3) { --step-indent: 12%; }
-  .login-step:nth-child(4) { --step-indent: 18%; }
-  .login-step:nth-child(5) { --step-indent: 24%; }
+  .login-step:nth-child(2) { --step-indent: 3%; }
+  .login-step:nth-child(3) { --step-indent: 6%; }
+  .login-step:nth-child(4) { --step-indent: 9%; }
+  .login-step:nth-child(5) { --step-indent: 12%; }
+  .login-step:nth-child(6) { --step-indent: 15%; }
+  .login-step:nth-child(7) { --step-indent: 18%; }
+  .login-step:nth-child(8) { --step-indent: 21%; }
 }
+
+.login-success {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  margin: 8px 0 15px;
+  padding: 18px 12px 15px;
+  border-top: 1px solid rgba(114,245,163,.35);
+  border-bottom: 1px solid rgba(114,245,163,.35);
+  background: linear-gradient(90deg, transparent, rgba(114,245,163,.07), transparent);
+  text-align: center;
+}
+
+.login-success[hidden] { display: none; }
+.login-success-rank { display: flex; align-items: center; gap: 9px; color: #d7ffe5; font: 600 15px var(--display); letter-spacing: .5px; }
+.login-success-rank img { width: 42px; height: 42px; object-fit: contain; filter: drop-shadow(0 0 9px rgba(114,245,163,.22)); }
+.login-success p { margin: 2px 0 0; color: #8df9b4; font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+.login-success strong { color: #eefcf2; font: 600 19px var(--display); letter-spacing: .4px; overflow-wrap: anywhere; }
 
 .login-live-status {
   min-height: 30px;
@@ -218,6 +260,8 @@
 .setting-option i::after { content: ''; position: absolute; width: 12px; height: 12px; left: 3px; top: 3px; background: #8794aa; transition: .18s; }
 .setting-option input:checked+i { border-color: var(--cyan); background: #56f5ec2b; box-shadow: 0 0 10px #56f5ec20; }
 .setting-option input:checked+i::after { left: 19px; background: var(--cyan); box-shadow: 0 0 8px #56f5ec90; }
+.setting-option-nested { margin: -5px 0 13px 20px; padding: 11px 13px; border-left: 2px solid rgba(86,245,236,.48); background: rgba(86,245,236,.035); }
+.setting-option-nested[hidden] { display: none; }
 .setting-option input:focus-visible+i { outline: 2px solid var(--cyan); outline-offset: 3px; }
 .settings-modal .full-button { margin-top: 10px; }
 .setting-language { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 13px 0 17px; padding: 13px; border: 1px solid rgba(146,169,212,.16); background: rgba(255,255,255,.02); color: #dce6f5; font-size: 10px; }

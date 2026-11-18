@@ -78,6 +78,9 @@ def wait_for_server(sock: socket.socket, result: dict, ready: threading.Event, t
 
 if __name__ == "__main__":
     from PySide6.QtCore import Qt
+    startup_minimized = "--minimized" in sys.argv[1:]
+    if startup_minimized:
+        sys.argv.remove("--minimized")
     QApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts)
     application = QApplication(sys.argv)
     icon_path = ASSET_ROOT / "image.png"
@@ -112,7 +115,10 @@ if __name__ == "__main__":
     view.settings().setAttribute(QWebEngineSettings.WebAttribute.JavascriptCanAccessClipboard, True)
     window.setCentralWidget(view)
     view.load(QUrl(f"http://127.0.0.1:{port}"))
-    window.show()
+    if startup_minimized:
+        window.showMinimized()
+    else:
+        window.show()
     close_timer = QTimer(window)
 
     def close_on_login() -> None:

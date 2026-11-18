@@ -18,7 +18,7 @@ import httpx
 import keyring
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from typing import Literal
@@ -145,12 +145,13 @@ def _preferences() -> dict[str, bool | str | int]:
     return {
         "close_after_login": _setting("close_after_login") == "true",
         "launch_on_windows": _setting("launch_on_windows") == "true",
+        "launch_minimized": _setting("launch_minimized") == "true",
         "language": _setting("language", "es"),
         "accounts_per_row": int(_setting("accounts_per_row", "3")),
     }
 
 
-def _set_windows_autostart(enabled: bool) -> None:
+def _set_windows_autostart(enabled: bool, minimized: bool = False) -> None:
     if os.name != "nt":
         raise HTTPException(501, "El inicio automático con Windows solo está disponible en Windows")
     import winreg
@@ -162,6 +163,8 @@ def _set_windows_autostart(enabled: bool) -> None:
             command = [str(Path(sys.executable).resolve())]
             if not getattr(sys, "frozen", False):
                 command.append(str(Path(__file__).with_name("main.py").resolve()))
+            if minimized:
+                command.append("--minimized")
             winreg.SetValueEx(key, value_name, 0, winreg.REG_SZ, subprocess.list2cmdline(command))
         else:
             try:
@@ -173,6 +176,7 @@ def _set_windows_autostart(enabled: bool) -> None:
 class AppSettings(BaseModel):
     close_after_login: bool
     launch_on_windows: bool
+    launch_minimized: bool = False
     language: Literal["es", "en"] = "es"
     accounts_per_row: Literal[2, 3, 4] = 3
 
@@ -185,13 +189,16 @@ async def get_settings():
 @app.put("/api/settings")
 async def put_settings(payload: AppSettings):
     current = _preferences()
-    if payload.launch_on_windows != current["launch_on_windows"]:
-        _set_windows_autostart(payload.launch_on_windows)
+    if payload.launch_on_windows != current["launch_on_windows"] or (
+        payload.launch_on_windows and payload.launch_minimized != current["launch_minimized"]
+    ):
+        _set_windows_autostart(payload.launch_on_windows, payload.launch_minimized)
     with connect() as db:
         db.executemany(
             "INSERT INTO app_settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
             (("close_after_login", str(payload.close_after_login).lower()),
              ("launch_on_windows", str(payload.launch_on_windows).lower()),
+             ("launch_minimized", str(payload.launch_minimized).lower()),
              ("language", payload.language),
              ("accounts_per_row", str(payload.accounts_per_row))),
         )
@@ -540,12 +547,7 @@ async def refresh_account(account_id: int):
 
 
 
-@app.post("/api/accounts/{account_id}/login")
-async def login_account(account_id: int):
-    with connect() as db:
-        row = db.execute("SELECT * FROM accounts WHERE id=?", (account_id,)).fetchone()
-    if not row:
-        raise HTTPException(404, "Cuenta no encontrada")
+def _stored_account_credentials(account_id: int) -> tuple[str, str]:
     stored = keyring.get_password(KEYRING_SERVICE, str(account_id))
     if not stored:
         raise HTTPException(409, "Esta cuenta no tiene credenciales guardadas")
@@ -557,6 +559,16 @@ async def login_account(account_id: int):
         raise HTTPException(500, "No se pudieron leer las credenciales guardadas de esta cuenta") from exc
     if not username or not password:
         raise HTTPException(409, "La cuenta no tiene usuario y contraseña guardados")
+    return username, password
+
+
+@app.post("/api/accounts/{account_id}/login")
+async def login_account(account_id: int):
+    with connect() as db:
+        row = db.execute("SELECT * FROM accounts WHERE id=?", (account_id,)).fetchone()
+    if not row:
+        raise HTTPException(404, "Cuenta no encontrada")
+    username, password = _stored_account_credentials(account_id)
     with _login_status_lock:
         if any(item["state"] in {"starting", "running", "verification"} for item in _login_statuses.values()):
             raise HTTPException(409, "Ya hay otro inicio de sesión en curso")
@@ -593,6 +605,19 @@ async def login_account(account_id: int):
 
     threading.Thread(target=worker, name=f"riot-login-{account_id}", daemon=True).start()
     return {"account_id": account_id, "status": "started"}
+
+
+@app.post("/api/accounts/{account_id}/password")
+async def account_password(account_id: int):
+    with connect() as db:
+        row = db.execute("SELECT 1 FROM accounts WHERE id=?", (account_id,)).fetchone()
+    if not row:
+        raise HTTPException(404, "Cuenta no encontrada")
+    _, password = _stored_account_credentials(account_id)
+    return JSONResponse(
+        {"password": password},
+        headers={"Cache-Control": "no-store", "Pragma": "no-cache"},
+    )
 
 
 @app.get("/api/accounts/{account_id}/login-status")
