@@ -19,6 +19,8 @@
   color: var(--cyan);
 }
 
+.login-modal { width: min(100%, 560px); }
+
 .login-modal h2 {
   margin: 12px 0 5px;
   color: #e8fffd;
@@ -28,75 +30,128 @@
 }
 
 .login-steps {
+  position: relative;
   display: grid;
-  gap: 7px;
-  margin: 17px 0 13px;
-  padding: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 22px;
+  row-gap: 0;
+  margin: 23px 0 20px;
+  padding: 0 6px;
   list-style: none;
 }
 
 .login-step {
   position: relative;
-  display: flex;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr);
   align-items: center;
-  gap: 12px;
-  min-height: 47px;
-  padding: 8px 12px;
-  border: 1px solid rgba(146, 169, 212, 0.12);
-  background: linear-gradient(100deg, rgba(255,255,255,.025), rgba(255,255,255,.008));
-  opacity: 0.62;
-  transition: opacity .2s, border-color .2s, background .2s, box-shadow .2s, transform .2s;
+  gap: 11px;
+  min-width: 0;
+  min-height: 84px;
+  padding: 11px 12px;
+  border: 1px solid rgba(146, 169, 212, 0.16);
+  border-radius: 4px;
+  background:
+    radial-gradient(ellipse at 100% 0, rgba(86,245,236,.08), transparent 56%),
+    linear-gradient(135deg, rgba(255,255,255,.04), rgba(7,13,25,.4));
+  box-shadow: inset 0 1px rgba(255,255,255,.035), 0 8px 22px rgba(0,0,0,.12);
+  opacity: .58;
+  transition: opacity .25s, border-color .25s, background .25s, box-shadow .25s, transform .25s;
 }
 
-.login-step:not(:last-child)::after { content: ''; position: absolute; z-index: 2; left: 26px; bottom: -8px; width: 1px; height: 8px; background: linear-gradient(var(--cyan), rgba(86,245,236,.12)); opacity: .4; }
+.login-step::before {
+  content: '';
+  position: absolute;
+  inset: 12px auto 12px 0;
+  width: 2px;
+  background: linear-gradient(180deg, transparent, var(--step-accent, #728199), transparent);
+  opacity: .45;
+}
+
+.login-step::after {
+  content: '';
+  position: absolute;
+  top: 13px;
+  right: 13px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #627087;
+  box-shadow: 0 0 0 3px rgba(98,112,135,.1);
+}
+
+.login-step:nth-child(2) { margin-top: 26px; }
+.login-step:nth-child(4) { margin-top: 32px; }
+.login-step:nth-child(5) {
+  grid-column: 1 / -1;
+  justify-self: center;
+  width: min(64%, 280px);
+  margin-top: 24px;
+}
 
 .login-step.active {
-  border-color: rgba(86, 245, 236, 0.62);
-  background: linear-gradient(100deg, rgba(86,245,236,.12), rgba(63,150,190,.035));
-  box-shadow: inset 2px 0 0 var(--cyan), 0 0 20px rgba(86,245,236,.08);
-  transform: translateX(2px);
+  --step-accent: var(--cyan);
+  border-color: rgba(86, 245, 236, .72);
+  background:
+    radial-gradient(ellipse at 100% 0, rgba(86,245,236,.18), transparent 58%),
+    linear-gradient(135deg, rgba(86,245,236,.12), rgba(14,27,42,.72));
+  box-shadow: inset 0 0 24px rgba(86,245,236,.055), 0 0 24px rgba(86,245,236,.14);
+  transform: translateY(-2px) scale(1.015);
   opacity: 1;
+  animation: login-step-glow 2.4s ease-in-out infinite;
 }
 
 .login-step.complete {
-  border-color: rgba(101, 242, 181, 0.24);
-  background: linear-gradient(100deg, rgba(101,242,181,.055), rgba(255,255,255,.008));
-  opacity: 0.85;
+  --step-accent: #65f2b5;
+  border-color: rgba(101, 242, 181, .34);
+  background:
+    radial-gradient(ellipse at 100% 0, rgba(101,242,181,.09), transparent 56%),
+    linear-gradient(135deg, rgba(101,242,181,.07), rgba(7,13,25,.4));
+  box-shadow: inset 0 0 18px rgba(101,242,181,.035), 0 5px 16px rgba(0,0,0,.1);
+  opacity: .9;
 }
 
 .login-step.failed {
-  border-color: rgba(255, 139, 157, 0.55);
+  --step-accent: #ff8b9d;
+  border-color: rgba(255, 139, 157, .68);
+  background: linear-gradient(135deg, rgba(255,139,157,.12), rgba(27,12,24,.55));
+  box-shadow: 0 0 22px rgba(255,139,157,.12);
   opacity: 1;
 }
 
 .step-indicator {
   display: grid;
-  flex: 0 0 29px;
-  width: 29px;
-  height: 29px;
+  width: 38px;
+  height: 38px;
   place-items: center;
-  border: 1px solid rgba(146, 169, 212, 0.32);
-  background: rgba(5,11,20,.62);
+  border: 1px solid rgba(146, 169, 212, .35);
+  border-radius: 12px 4px 12px 4px;
+  background: linear-gradient(145deg, rgba(5,11,20,.9), rgba(31,43,61,.64));
   color: #9aa9bf;
-  font: 600 12px var(--display);
-  letter-spacing: .35px;
+  font: 700 13px var(--display);
+  letter-spacing: .5px;
+  text-shadow: 0 0 10px currentColor;
+  transition: color .25s, border-color .25s, box-shadow .25s, transform .25s;
 }
 
 .login-step.active .step-indicator {
   border-color: var(--cyan);
   color: var(--cyan);
-  box-shadow: 0 0 13px rgba(86, 245, 236, 0.2), inset 0 0 10px rgba(86,245,236,.08);
+  box-shadow: 0 0 18px rgba(86,245,236,.3), inset 0 0 12px rgba(86,245,236,.11);
+  animation: login-node-pulse 1.8s ease-in-out infinite;
 }
 
 .login-step.complete .step-indicator {
-  border-color: #65f2b5;
+  border-color: rgba(101,242,181,.7);
   color: #65f2b5;
-  box-shadow: 0 0 10px rgba(101,242,181,.09);
+  box-shadow: 0 0 14px rgba(101,242,181,.16), inset 0 0 9px rgba(101,242,181,.08);
 }
 
 .login-step.failed .step-indicator {
   border-color: #ff8b9d;
   color: #ff8b9d;
+  box-shadow: 0 0 16px rgba(255,139,157,.22);
 }
 
 .login-step b,
@@ -107,14 +162,42 @@
 
 .login-step b {
   color: #dce6f5;
-  font-size: 10px;
-  letter-spacing: .2px;
+  font-size: 11px;
+  line-height: 1.25;
+  letter-spacing: .15px;
 }
 
 .login-step small {
-  margin-top: 4px;
+  margin-top: 5px;
   color: #8592a8;
   font-size: 8px;
+  line-height: 1.45;
+}
+
+@keyframes login-step-glow {
+  0%, 100% { box-shadow: inset 0 0 24px rgba(86,245,236,.045), 0 0 16px rgba(86,245,236,.09); }
+  50% { box-shadow: inset 0 0 28px rgba(86,245,236,.085), 0 0 26px rgba(86,245,236,.18); }
+}
+
+@keyframes login-node-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+
+@media (max-width: 470px) {
+  .login-steps { column-gap: 10px; padding: 0; }
+  .login-step { grid-template-columns: 32px minmax(0, 1fr); gap: 8px; min-height: 82px; padding: 9px 8px; }
+  .step-indicator { width: 32px; height: 32px; border-radius: 10px 3px 10px 3px; }
+  .login-step b { font-size: 9px; }
+  .login-step small { font-size: 7px; }
+  .login-step:nth-child(2) { margin-top: 21px; }
+  .login-step:nth-child(4) { margin-top: 27px; }
+  .login-step:nth-child(5) { width: 72%; margin-top: 20px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-step.active,
+  .login-step.active .step-indicator { animation: none; }
 }
 
 .login-live-status {

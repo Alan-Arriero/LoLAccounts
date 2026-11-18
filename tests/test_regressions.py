@@ -92,7 +92,7 @@ class AccountRegressionTests(unittest.IsolatedAsyncioTestCase):
                 if "/summoner/v4/" in url:
                     if "second-puuid" in url:
                         raise HTTPException(404, "No EUW summoner")
-                    return {"profileIconId": 123, "summonerLevel": 520}
+                    return {"profileIconId": 0, "summonerLevel": 520}
                 raise AssertionError(f"Unexpected Riot API URL: {url}")
 
             with (
@@ -115,7 +115,7 @@ class AccountRegressionTests(unittest.IsolatedAsyncioTestCase):
                 accounts = await app.list_accounts()
 
             self.assertEqual(first["summoner_level"], 520)
-            self.assertEqual(first["profile_icon_id"], 123)
+            self.assertEqual(first["profile_icon_id"], 0)
             self.assertEqual(first["tier"], "GOLD")
             self.assertEqual(first["flex_tier"], "PLATINUM")
             self.assertEqual(first["flex_rank"], "IV")
@@ -302,7 +302,7 @@ class UpdaterRegressionTests(unittest.TestCase):
             def get(self, url):
                 requested_urls.append(url)
                 return Response({
-                    "tag_name": "v0.2.35",
+                    "tag_name": "v0.2.36",
                     "assets": [{
                         "name": "LoLAccounts-windows-x64.zip",
                         "size": len(archive_bytes),
@@ -331,7 +331,7 @@ class UpdaterRegressionTests(unittest.TestCase):
         self.assertEqual(requested_urls[0], updater.API)
         self.assertEqual(requested_urls[1], "https://example.test/latest.zip")
         self.assertEqual(result["state"], "ready")
-        self.assertEqual(result["latest_version"], "v0.2.35")
+        self.assertEqual(result["latest_version"], "v0.2.36")
         self.assertEqual(Path(result["payload"]).name, "Rift Vault")
 
 
