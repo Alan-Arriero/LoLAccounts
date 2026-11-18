@@ -12,6 +12,7 @@ from pathlib import Path
 import uvicorn
 from PySide6.QtCore import QTimer, QUrl
 from PySide6.QtGui import QIcon
+from PySide6.QtWebEngineCore import QWebEngineSettings
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWidgets import QApplication, QMainWindow, QMessageBox
 
@@ -108,6 +109,7 @@ if __name__ == "__main__":
     window.resize(1440, 920)
     window.setMinimumSize(760, 560)
     view = QWebEngineView(window)
+    view.settings().setAttribute(QWebEngineSettings.WebAttribute.JavascriptCanAccessClipboard, True)
     window.setCentralWidget(view)
     view.load(QUrl(f"http://127.0.0.1:{port}"))
     window.show()

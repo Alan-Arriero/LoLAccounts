@@ -15,7 +15,7 @@ import httpx
 
 OWNER = "Alan-Arriero"
 REPO = "LoLAccounts"
-CURRENT_VERSION = "0.2.28"
+CURRENT_VERSION = "0.2.29"
 UPDATE_CHECK_INTERVAL_SECONDS = 300
 EXECUTABLE_NAME = "Rift Vault.exe"
 API = f"https://api.github.com/repos/{OWNER}/{REPO}/releases/latest"
