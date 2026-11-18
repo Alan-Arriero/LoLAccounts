@@ -15,12 +15,14 @@ import httpx
 
 OWNER = "Alan-Arriero"
 REPO = "LoLAccounts"
-CURRENT_VERSION = "0.2.23"
+CURRENT_VERSION = "0.2.24"
+UPDATE_CHECK_INTERVAL_SECONDS = 300
 EXECUTABLE_NAME = "Rift Vault.exe"
 API = f"https://api.github.com/repos/{OWNER}/{REPO}/releases/latest"
 ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 _lock = threading.Lock()
 _status: dict = {"state": "idle", "progress": 0, "current_version": CURRENT_VERSION, "latest_version": CURRENT_VERSION}
+_worker: threading.Thread | None = None
 
 
 def status() -> dict:
@@ -103,9 +105,23 @@ def _check_and_download() -> None:
         _set(state="error", error=f"No se pudo descargar la actualización: {exc}")
 
 
+def _update_worker() -> None:
+    while True:
+        _check_and_download()
+        if status()["state"] == "ready":
+            return
+        time.sleep(UPDATE_CHECK_INTERVAL_SECONDS)
+
+
 def start() -> None:
-    if _status["state"] == "idle":
-        threading.Thread(target=_check_and_download, name="release-updater", daemon=True).start()
+    global _worker
+    if not getattr(sys, "frozen", False):
+        _set(state="current")
+        return
+    if _worker and _worker.is_alive():
+        return
+    _worker = threading.Thread(target=_update_worker, name="release-updater", daemon=True)
+    _worker.start()
 
 
 def apply_and_restart() -> dict:

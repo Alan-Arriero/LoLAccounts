@@ -127,6 +127,21 @@ class AccountRegressionTests(unittest.IsolatedAsyncioTestCase):
 
 
 class UpdaterRegressionTests(unittest.TestCase):
+    def test_update_worker_rechecks_after_current_until_update_is_ready(self) -> None:
+        checked_states = iter(("current", "ready"))
+
+        def check_for_updates():
+            updater._set(state=next(checked_states))
+
+        with (
+            patch.object(updater, "_check_and_download", side_effect=check_for_updates) as check,
+            patch.object(updater.time, "sleep") as sleep,
+        ):
+            updater._update_worker()
+
+        self.assertEqual(check.call_count, 2)
+        sleep.assert_called_once_with(updater.UPDATE_CHECK_INTERVAL_SECONDS)
+
     def test_downloads_latest_release_after_skipping_intermediate_versions(self) -> None:
         archive_buffer = io.BytesIO()
         with zipfile.ZipFile(archive_buffer, "w") as archive:
@@ -173,7 +188,7 @@ class UpdaterRegressionTests(unittest.TestCase):
             def get(self, url):
                 requested_urls.append(url)
                 return Response({
-                    "tag_name": "v0.2.24",
+                    "tag_name": "v0.2.25",
                     "assets": [{
                         "name": "LoLAccounts-windows-x64.zip",
                         "size": len(archive_bytes),
@@ -202,7 +217,7 @@ class UpdaterRegressionTests(unittest.TestCase):
         self.assertEqual(requested_urls[0], updater.API)
         self.assertEqual(requested_urls[1], "https://example.test/latest.zip")
         self.assertEqual(result["state"], "ready")
-        self.assertEqual(result["latest_version"], "v0.2.24")
+        self.assertEqual(result["latest_version"], "v0.2.25")
         self.assertEqual(Path(result["payload"]).name, "Rift Vault")
 
 
