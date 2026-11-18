@@ -302,7 +302,7 @@ class UpdaterRegressionTests(unittest.TestCase):
             def get(self, url):
                 requested_urls.append(url)
                 return Response({
-                    "tag_name": "v0.2.36",
+                    "tag_name": "v0.2.37",
                     "assets": [{
                         "name": "LoLAccounts-windows-x64.zip",
                         "size": len(archive_bytes),
@@ -331,7 +331,7 @@ class UpdaterRegressionTests(unittest.TestCase):
         self.assertEqual(requested_urls[0], updater.API)
         self.assertEqual(requested_urls[1], "https://example.test/latest.zip")
         self.assertEqual(result["state"], "ready")
-        self.assertEqual(result["latest_version"], "v0.2.36")
+        self.assertEqual(result["latest_version"], "v0.2.37")
         self.assertEqual(Path(result["payload"]).name, "Rift Vault")
 
 

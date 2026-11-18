@@ -30,129 +30,123 @@
 }
 
 .login-steps {
-  position: relative;
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  column-gap: 22px;
-  row-gap: 0;
-  margin: 23px 0 20px;
-  padding: 0 6px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  margin: 22px 0 18px;
+  padding: 0;
   list-style: none;
 }
 
 .login-step {
+  --step-accent: #42f2e8;
+  --step-wash: rgba(66,242,232,.09);
+  --step-active-wash: rgba(66,242,232,.2);
+  --step-line: rgba(66,242,232,.3);
   position: relative;
-  isolation: isolate;
   display: grid;
-  grid-template-columns: 38px minmax(0, 1fr);
+  grid-template-columns: 48px minmax(0, 1fr) 7px;
   align-items: center;
-  gap: 11px;
+  gap: 13px;
+  width: calc(100% - var(--step-indent, 0%));
   min-width: 0;
-  min-height: 84px;
-  padding: 11px 12px;
-  border: 1px solid rgba(146, 169, 212, 0.16);
-  border-radius: 4px;
-  background:
-    radial-gradient(ellipse at 100% 0, rgba(86,245,236,.08), transparent 56%),
-    linear-gradient(135deg, rgba(255,255,255,.04), rgba(7,13,25,.4));
-  box-shadow: inset 0 1px rgba(255,255,255,.035), 0 8px 22px rgba(0,0,0,.12);
-  opacity: .58;
-  transition: opacity .25s, border-color .25s, background .25s, box-shadow .25s, transform .25s;
+  min-height: 59px;
+  margin: 0 0 2px var(--step-indent, 0%);
+  padding: 7px 14px 7px 12px;
+  border: 0;
+  border-bottom: 1px solid var(--step-line);
+  background: linear-gradient(90deg, var(--step-wash), rgba(10,15,28,.12) 76%, transparent);
+  opacity: .68;
+  transition: opacity .25s, background .25s, filter .25s, transform .25s;
+}
+
+.login-step:nth-child(1) { --step-indent: 0%; }
+.login-step:nth-child(2) {
+  --step-accent: #55b7ff;
+  --step-wash: rgba(85,183,255,.09);
+  --step-active-wash: rgba(85,183,255,.2);
+  --step-line: rgba(85,183,255,.3);
+  --step-indent: 7%;
+}
+.login-step:nth-child(3) {
+  --step-accent: #b183ff;
+  --step-wash: rgba(177,131,255,.09);
+  --step-active-wash: rgba(177,131,255,.2);
+  --step-line: rgba(177,131,255,.3);
+  --step-indent: 14%;
+}
+.login-step:nth-child(4) {
+  --step-accent: #ff65d5;
+  --step-wash: rgba(255,101,213,.09);
+  --step-active-wash: rgba(255,101,213,.2);
+  --step-line: rgba(255,101,213,.3);
+  --step-indent: 21%;
+}
+.login-step:nth-child(5) {
+  --step-accent: #ff7896;
+  --step-wash: rgba(255,120,150,.09);
+  --step-active-wash: rgba(255,120,150,.2);
+  --step-line: rgba(255,120,150,.3);
+  --step-indent: 28%;
 }
 
 .login-step::before {
   content: '';
   position: absolute;
-  inset: 12px auto 12px 0;
+  top: 10px;
+  bottom: 10px;
+  left: 0;
   width: 2px;
-  background: linear-gradient(180deg, transparent, var(--step-accent, #728199), transparent);
-  opacity: .45;
+  background: linear-gradient(180deg, transparent, var(--step-accent), transparent);
+  opacity: .7;
 }
 
 .login-step::after {
   content: '';
-  position: absolute;
-  top: 13px;
-  right: 13px;
   width: 6px;
   height: 6px;
+  border: 1px solid var(--step-accent);
   border-radius: 50%;
-  background: #627087;
-  box-shadow: 0 0 0 3px rgba(98,112,135,.1);
-}
-
-.login-step:nth-child(2) { margin-top: 26px; }
-.login-step:nth-child(4) { margin-top: 32px; }
-.login-step:nth-child(5) {
-  grid-column: 1 / -1;
-  justify-self: center;
-  width: min(64%, 280px);
-  margin-top: 24px;
+  background: transparent;
+  opacity: .55;
+  transition: background .2s, box-shadow .2s, opacity .2s;
 }
 
 .login-step.active {
-  --step-accent: var(--cyan);
-  border-color: rgba(86, 245, 236, .72);
-  background:
-    radial-gradient(ellipse at 100% 0, rgba(86,245,236,.18), transparent 58%),
-    linear-gradient(135deg, rgba(86,245,236,.12), rgba(14,27,42,.72));
-  box-shadow: inset 0 0 24px rgba(86,245,236,.055), 0 0 24px rgba(86,245,236,.14);
-  transform: translateY(-2px) scale(1.015);
+  background: linear-gradient(90deg, var(--step-active-wash), rgba(10,15,28,.1) 82%, transparent);
+  box-shadow: inset 2px 0 0 var(--step-accent), 0 7px 20px -14px var(--step-accent);
+  filter: drop-shadow(0 0 8px var(--step-accent));
+  transform: translateX(4px);
   opacity: 1;
-  animation: login-step-glow 2.4s ease-in-out infinite;
 }
 
-.login-step.complete {
-  --step-accent: #65f2b5;
-  border-color: rgba(101, 242, 181, .34);
-  background:
-    radial-gradient(ellipse at 100% 0, rgba(101,242,181,.09), transparent 56%),
-    linear-gradient(135deg, rgba(101,242,181,.07), rgba(7,13,25,.4));
-  box-shadow: inset 0 0 18px rgba(101,242,181,.035), 0 5px 16px rgba(0,0,0,.1);
-  opacity: .9;
+.login-step.active::after,
+.login-step.complete::after {
+  background: var(--step-accent);
+  box-shadow: 0 0 11px var(--step-accent);
+  opacity: 1;
 }
+
+.login-step.complete { opacity: .88; }
 
 .login-step.failed {
-  --step-accent: #ff8b9d;
-  border-color: rgba(255, 139, 157, .68);
-  background: linear-gradient(135deg, rgba(255,139,157,.12), rgba(27,12,24,.55));
-  box-shadow: 0 0 22px rgba(255,139,157,.12);
+  --step-wash: rgba(255,131,155,.13);
+  --step-line: rgba(255,131,155,.5);
   opacity: 1;
 }
 
 .step-indicator {
-  display: grid;
-  width: 38px;
-  height: 38px;
-  place-items: center;
-  border: 1px solid rgba(146, 169, 212, .35);
-  border-radius: 12px 4px 12px 4px;
-  background: linear-gradient(145deg, rgba(5,11,20,.9), rgba(31,43,61,.64));
-  color: #9aa9bf;
-  font: 700 13px var(--display);
-  letter-spacing: .5px;
-  text-shadow: 0 0 10px currentColor;
-  transition: color .25s, border-color .25s, box-shadow .25s, transform .25s;
+  display: block;
+  color: var(--step-accent);
+  font: 700 27px/.9 var(--display);
+  letter-spacing: -.5px;
+  text-align: center;
+  text-shadow: 0 0 15px var(--step-accent);
+  transition: color .25s, text-shadow .25s, transform .25s;
 }
 
-.login-step.active .step-indicator {
-  border-color: var(--cyan);
-  color: var(--cyan);
-  box-shadow: 0 0 18px rgba(86,245,236,.3), inset 0 0 12px rgba(86,245,236,.11);
-  animation: login-node-pulse 1.8s ease-in-out infinite;
-}
-
-.login-step.complete .step-indicator {
-  border-color: rgba(101,242,181,.7);
-  color: #65f2b5;
-  box-shadow: 0 0 14px rgba(101,242,181,.16), inset 0 0 9px rgba(101,242,181,.08);
-}
-
-.login-step.failed .step-indicator {
-  border-color: #ff8b9d;
-  color: #ff8b9d;
-  box-shadow: 0 0 16px rgba(255,139,157,.22);
-}
+.login-step.active .step-indicator { transform: scale(1.08); }
+.login-step.failed .step-indicator { color: #ff839b; text-shadow: 0 0 15px rgba(255,131,155,.75); }
 
 .login-step b,
 .login-step small {
@@ -161,43 +155,33 @@
 }
 
 .login-step b {
-  color: #dce6f5;
-  font-size: 11px;
-  line-height: 1.25;
-  letter-spacing: .15px;
+  color: #e3edf8;
+  font-size: 10px;
+  line-height: 1.3;
+  letter-spacing: .35px;
+  text-transform: uppercase;
 }
 
+.login-step.active b { color: var(--step-accent); }
+
 .login-step small {
-  margin-top: 5px;
-  color: #8592a8;
+  margin-top: 4px;
+  color: #8c9bb0;
   font-size: 8px;
   line-height: 1.45;
 }
 
-@keyframes login-step-glow {
-  0%, 100% { box-shadow: inset 0 0 24px rgba(86,245,236,.045), 0 0 16px rgba(86,245,236,.09); }
-  50% { box-shadow: inset 0 0 28px rgba(86,245,236,.085), 0 0 26px rgba(86,245,236,.18); }
-}
-
-@keyframes login-node-pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.06); }
-}
+.login-step.active small { color: #c1ccdc; }
 
 @media (max-width: 470px) {
-  .login-steps { column-gap: 10px; padding: 0; }
-  .login-step { grid-template-columns: 32px minmax(0, 1fr); gap: 8px; min-height: 82px; padding: 9px 8px; }
-  .step-indicator { width: 32px; height: 32px; border-radius: 10px 3px 10px 3px; }
+  .login-step { grid-template-columns: 40px minmax(0, 1fr) 6px; gap: 9px; min-height: 56px; padding-right: 9px; }
+  .step-indicator { font-size: 24px; }
   .login-step b { font-size: 9px; }
   .login-step small { font-size: 7px; }
-  .login-step:nth-child(2) { margin-top: 21px; }
-  .login-step:nth-child(4) { margin-top: 27px; }
-  .login-step:nth-child(5) { width: 72%; margin-top: 20px; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .login-step.active,
-  .login-step.active .step-indicator { animation: none; }
+  .login-step:nth-child(2) { --step-indent: 6%; }
+  .login-step:nth-child(3) { --step-indent: 12%; }
+  .login-step:nth-child(4) { --step-indent: 18%; }
+  .login-step:nth-child(5) { --step-indent: 24%; }
 }
 
 .login-live-status {
