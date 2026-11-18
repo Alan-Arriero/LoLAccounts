@@ -11,7 +11,9 @@
 .update-meta{display:flex;justify-content:space-between;color:#a7b4c8;font:600 10px var(--display);letter-spacing:1px}
 .update-close{margin-top:16px;border:0;background:transparent;color:#8a97ad;font-size:9px;cursor:pointer}
 .update-close:hover{color:var(--cyan)}
-.rank-progress-track span{background:linear-gradient(90deg,#56f5ec,#ed58ff);box-shadow:0 0 16px #56f5ec88}
+.rank-progress-track{position:relative;background:linear-gradient(90deg,#ff4d6d 0%,#ffad42 16.67%,#fff36d 33.33%,#61ff8c 50%,#42eaff 66.67%,#6574ff 83.33%,#d66bff 100%)}
+.rank-progress-track::after{content:'';position:absolute;inset:0 0 0 auto;z-index:2;width:calc(100% - var(--lp-progress,0%));background:#ffffff0c;transition:width .35s ease}
+.rank-progress-track span{position:relative;z-index:1;background:transparent;box-shadow:none}
 @keyframes progress-glow{from{filter:brightness(.86)}to{filter:brightness(1.3)}}
 
 /* Official ranked emblems and the supplied logo artwork */
