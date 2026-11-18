@@ -19,6 +19,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from typing import Literal
 import updater
 import riot_login
 
@@ -127,10 +128,11 @@ def _setting(key: str, default: str = "false") -> str:
     return str(row["value"]) if row else default
 
 
-def _preferences() -> dict[str, bool]:
+def _preferences() -> dict[str, bool | str]:
     return {
         "close_after_login": _setting("close_after_login") == "true",
         "launch_on_windows": _setting("launch_on_windows") == "true",
+        "language": _setting("language", "es"),
     }
 
 
@@ -157,6 +159,7 @@ def _set_windows_autostart(enabled: bool) -> None:
 class AppSettings(BaseModel):
     close_after_login: bool
     launch_on_windows: bool
+    language: Literal["es", "en"] = "es"
 
 
 @app.get("/api/settings")
@@ -173,7 +176,8 @@ async def put_settings(payload: AppSettings):
         db.executemany(
             "INSERT INTO app_settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
             (("close_after_login", str(payload.close_after_login).lower()),
-             ("launch_on_windows", str(payload.launch_on_windows).lower())),
+             ("launch_on_windows", str(payload.launch_on_windows).lower()),
+             ("language", payload.language)),
         )
     return _preferences()
 
@@ -500,7 +504,11 @@ async def login_account(account_id: int):
         }
 
     def worker() -> None:
+        last_step = "client"
+
         def report(step: str, message: str, progress: float | None = None) -> None:
+            nonlocal last_step
+            last_step = step
             with _login_status_lock:
                 _login_statuses[account_id] = {
                     "state": "verification" if step == "verification" else "running",
@@ -519,7 +527,7 @@ async def login_account(account_id: int):
         except Exception as exc:
             with _login_status_lock:
                 _login_statuses[account_id] = {
-                    "state": "error", "step": "error", "message": str(exc), "progress": None
+                    "state": "error", "step": last_step, "message": str(exc), "progress": None
                 }
 
     threading.Thread(target=worker, name=f"riot-login-{account_id}", daemon=True).start()

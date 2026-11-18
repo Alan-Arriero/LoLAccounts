@@ -21,36 +21,46 @@
 
 .login-modal h2 {
   margin: 12px 0 5px;
-  font: 600 25px var(--display);
+  color: #e8fffd;
+  font: 600 27px var(--display);
+  letter-spacing: .55px;
+  text-shadow: 0 0 20px rgba(86,245,236,.15);
 }
 
 .login-steps {
   display: grid;
-  gap: 8px;
-  margin: 20px 0 13px;
+  gap: 7px;
+  margin: 17px 0 13px;
   padding: 0;
   list-style: none;
 }
 
 .login-step {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 11px 12px;
-  border: 1px solid rgba(146, 169, 212, 0.13);
-  background: rgba(255, 255, 255, 0.018);
-  opacity: 0.55;
-  transition: opacity 0.2s, border-color 0.2s, background 0.2s;
+  min-height: 47px;
+  padding: 8px 12px;
+  border: 1px solid rgba(146, 169, 212, 0.12);
+  background: linear-gradient(100deg, rgba(255,255,255,.025), rgba(255,255,255,.008));
+  opacity: 0.62;
+  transition: opacity .2s, border-color .2s, background .2s, box-shadow .2s, transform .2s;
 }
 
+.login-step:not(:last-child)::after { content: ''; position: absolute; z-index: 2; left: 26px; bottom: -8px; width: 1px; height: 8px; background: linear-gradient(var(--cyan), rgba(86,245,236,.12)); opacity: .4; }
+
 .login-step.active {
-  border-color: rgba(86, 245, 236, 0.42);
-  background: rgba(86, 245, 236, 0.055);
+  border-color: rgba(86, 245, 236, 0.62);
+  background: linear-gradient(100deg, rgba(86,245,236,.12), rgba(63,150,190,.035));
+  box-shadow: inset 2px 0 0 var(--cyan), 0 0 20px rgba(86,245,236,.08);
+  transform: translateX(2px);
   opacity: 1;
 }
 
 .login-step.complete {
-  border-color: rgba(101, 242, 181, 0.3);
+  border-color: rgba(101, 242, 181, 0.24);
+  background: linear-gradient(100deg, rgba(101,242,181,.055), rgba(255,255,255,.008));
   opacity: 0.85;
 }
 
@@ -61,24 +71,27 @@
 
 .step-indicator {
   display: grid;
-  flex: 0 0 25px;
-  width: 25px;
-  height: 25px;
+  flex: 0 0 29px;
+  width: 29px;
+  height: 29px;
   place-items: center;
-  border: 1px solid rgba(146, 169, 212, 0.28);
+  border: 1px solid rgba(146, 169, 212, 0.32);
+  background: rgba(5,11,20,.62);
   color: #9aa9bf;
-  font-size: 10px;
+  font: 600 12px var(--display);
+  letter-spacing: .35px;
 }
 
 .login-step.active .step-indicator {
   border-color: var(--cyan);
   color: var(--cyan);
-  box-shadow: 0 0 12px rgba(86, 245, 236, 0.13);
+  box-shadow: 0 0 13px rgba(86, 245, 236, 0.2), inset 0 0 10px rgba(86,245,236,.08);
 }
 
 .login-step.complete .step-indicator {
   border-color: #65f2b5;
   color: #65f2b5;
+  box-shadow: 0 0 10px rgba(101,242,181,.09);
 }
 
 .login-step.failed .step-indicator {
@@ -95,6 +108,7 @@
 .login-step b {
   color: #dce6f5;
   font-size: 10px;
+  letter-spacing: .2px;
 }
 
 .login-step small {
@@ -139,6 +153,9 @@
 .setting-option input:checked+i::after { left: 19px; background: var(--cyan); box-shadow: 0 0 8px #56f5ec90; }
 .setting-option input:focus-visible+i { outline: 2px solid var(--cyan); outline-offset: 3px; }
 .settings-modal .full-button { margin-top: 10px; }
+.setting-language { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 13px 0 17px; padding: 13px; border: 1px solid rgba(146,169,212,.16); background: rgba(255,255,255,.02); color: #dce6f5; font-size: 10px; }
+.setting-language select { min-width: 118px; height: 32px; padding: 0 9px; border: 1px solid rgba(86,245,236,.35); border-radius: 2px; outline: none; background: #0b1120; color: #dce6f5; font: 500 10px var(--font); }
+.setting-language select:focus { border-color: var(--cyan); box-shadow: 0 0 0 2px #56f5ec12; }
 
 .rank-refresh-timer { display: grid; grid-template-columns: 8px 1fr auto; align-items: center; gap: 7px; margin: 0 2px 10px; padding: 10px 8px; border-top: 1px solid rgba(146,169,212,.12); color: #748098; font-size: 7px; letter-spacing: .65px; }
 .refresh-dot { width: 5px; height: 5px; border-radius: 50%; background: #65f2b5; box-shadow: 0 0 8px #65f2b5; }
