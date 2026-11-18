@@ -15,7 +15,8 @@ import httpx
 
 OWNER = "Alan-Arriero"
 REPO = "LoLAccounts"
-CURRENT_VERSION = "0.2.20"
+CURRENT_VERSION = "0.2.21"
+EXECUTABLE_NAME = "Rift Vault.exe"
 API = f"https://api.github.com/repos/{OWNER}/{REPO}/releases/latest"
 ROOT = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent
 _lock = threading.Lock()
@@ -49,9 +50,9 @@ def _safe_extract(archive: Path, destination: Path) -> Path:
             if not target.is_relative_to(root):
                 raise ValueError("El paquete intenta salir de su carpeta.")
             bundle.extract(item, root)
-    candidates = [p.parent for p in root.rglob("LoLAccounts.exe")]
+    candidates = [p.parent for p in root.rglob(EXECUTABLE_NAME)]
     if not candidates:
-        raise ValueError("La release descargada no contiene LoLAccounts.exe.")
+        raise ValueError(f"La release descargada no contiene {EXECUTABLE_NAME}.")
     payload = candidates[0]
     if not (payload / "_internal").is_dir() or not (payload / "_internal" / "static").is_dir():
         raise ValueError("La release descargada está incompleta.")
@@ -113,7 +114,7 @@ def apply_and_restart() -> dict:
         raise RuntimeError("La actualización todavía no está preparada.")
     payload = Path(info["payload"]).resolve()
     root = ROOT.resolve()
-    if not payload.is_relative_to(root) or not (payload / "LoLAccounts.exe").is_file():
+    if not payload.is_relative_to(root) or not (payload / EXECUTABLE_NAME).is_file():
         raise RuntimeError("La carpeta de actualización no es válida.")
     if not getattr(sys, "frozen", False):
         raise RuntimeError("El actualizador solo está disponible en la aplicación instalada.")
@@ -123,7 +124,8 @@ $ErrorActionPreference = 'Stop'
 $pidToWait = __PID__
 $root = '__ROOT__'
 $payload = '__PAYLOAD__'
-$exe = Join-Path $root 'LoLAccounts.exe'
+$exe = Join-Path $root '__APP_EXE__'
+$legacyExe = Join-Path $root 'LoLAccounts.exe'
 $stage = Join-Path $root '.update-staging'
 while (Get-Process -Id $pidToWait -ErrorAction SilentlyContinue) { Start-Sleep -Milliseconds 400 }
 $preserve = @()
@@ -137,11 +139,15 @@ foreach ($name in @('.env', 'league_accounts.db')) {
 }
 Copy-Item -Path (Join-Path $payload '*') -Destination $root -Recurse -Force
 foreach ($item in $preserve) { Copy-Item -LiteralPath $item.Path -Destination (Join-Path $root $item.Name) -Force }
+if (Test-Path -LiteralPath $legacyExe) { Remove-Item -LiteralPath $legacyExe -Force }
 Remove-Item -LiteralPath $stage -Recurse -Force
 Start-Process -FilePath $exe -WorkingDirectory $root
 Remove-Item -LiteralPath $PSCommandPath -Force
 """
-    ps = ps.replace("__PID__", str(os.getpid())).replace("__ROOT__", str(root).replace("'", "''")).replace("__PAYLOAD__", str(payload).replace("'", "''"))
+    ps = (ps.replace("__PID__", str(os.getpid()))
+          .replace("__ROOT__", str(root).replace("'", "''"))
+          .replace("__PAYLOAD__", str(payload).replace("'", "''"))
+          .replace("__APP_EXE__", EXECUTABLE_NAME.replace("'", "''")))
     script.write_text(ps, encoding="utf-8")
     subprocess.Popen(["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(script)],
                      creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0), close_fds=True)

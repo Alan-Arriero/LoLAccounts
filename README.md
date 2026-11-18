@@ -2,7 +2,7 @@
 
 Aplicación de escritorio local para gestionar cuentas de League of Legends en EUW. Consulta los Riot IDs y rangos con la API oficial de Riot, mantiene el perfil activo local y permite filtrar la colección por elo, nombre, etiqueta o porcentaje de victorias.
 
-Los emblemas Iron–Challenger proceden del paquete oficial [Ranked Emblems Latest de Riot](https://static.developer.riotgames.com/docs/lol/ranked-emblems-latest.zip). La imagen de Yuumi del icono y la interfaz parte de images.jpg.
+Los emblemas Iron–Challenger proceden del paquete oficial [Ranked Emblems Latest de Riot](https://static.developer.riotgames.com/docs/lol/ranked-emblems-latest.zip). Riot no incluye un emblema Unranked en ese paquete; la interfaz lo presenta como Sin clasificar sin atribuirle una imagen oficial inexistente. La imagen de Yuumi del icono y la interfaz parte de images.jpg.
 
 ## Inicio de escritorio
 
@@ -26,7 +26,7 @@ Al añadir una cuenta puedes guardar el usuario y la contraseña de Riot. La con
 
 ## Descargas y actualizaciones
 
-Cada tag v* genera una release pública de Windows en GitHub Actions. Extrae el ZIP y ejecuta LoLAccounts.exe. Al iniciar, la app consulta la release pública más reciente; si encuentra una versión nueva, la descarga con indicador de progreso y ofrece reiniciarse para instalarla. El actualizador conserva .env y league_accounts.db.
+Cada tag v* genera una release pública de Windows en GitHub Actions. Extrae el ZIP y ejecuta Rift Vault.exe. Al iniciar, la app consulta la release pública más reciente (no la versión inmediatamente siguiente); si encuentra una versión nueva, la descarga con indicador de progreso y ofrece reiniciarse para instalarla. El actualizador conserva .env y league_accounts.db.
 
 Si una versión instalada no llega a abrir la interfaz, descarga e instala manualmente la release actual. Una vez que la aplicación inicia normalmente, las versiones posteriores pueden actualizarse automáticamente.
 

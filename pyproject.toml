@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "rift-vault"
-version = "0.2.20"
+version = "0.2.21"
 description = "Neon League of Legends account manager for EUW"
 authors = ["Rift Vault"]
 readme = "README.md"

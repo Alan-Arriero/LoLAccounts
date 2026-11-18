@@ -16,8 +16,11 @@
 .account-card .account-name{min-width:0;font-size:22px;line-height:1.05;font-weight:700;letter-spacing:.15px;margin:0;overflow:hidden;text-overflow:ellipsis}
 .account-card .account-tag{flex:none;font-size:16px;line-height:1.1;color:#aebbd0;letter-spacing:.25px}
 .profile-icon{display:block;width:70px;height:70px;object-fit:cover;border:1px solid #72f5dd9c;border-radius:7px;background:linear-gradient(140deg,#56f5ec20,#ed58ff19);box-shadow:0 0 18px #56f5ec22}
+.profile-icon-wrap{position:relative;width:70px;height:70px}
+.profile-icon-wrap .profile-icon{width:100%;height:100%}
+.profile-icon-level{position:absolute;right:-5px;bottom:-5px;min-width:28px;height:18px;padding:1px 4px;border:1px solid #56f5ec99;border-radius:9px;background:#08121f;color:#b8fff8;text-align:center;font:700 10px/14px var(--font);box-shadow:0 0 8px #56f5ec55}
 .profile-icon-empty{background:linear-gradient(140deg,#56f5ec12,#ed58ff12);box-shadow:inset 0 0 20px #56f5ec0c}
-.account-card .profile-icon{grid-column:3;grid-row:1;justify-self:end}.account-card .card-menu{grid-column:2;grid-row:1;align-self:start;justify-self:center;z-index:3;padding:1px 0 0 3px}
+.account-card .profile-icon-wrap{grid-column:3;grid-row:1;justify-self:end}.account-card .card-menu{grid-column:2;grid-row:1;align-self:start;justify-self:center;z-index:3;padding:1px 0 0 3px}
 .account-card .account-menu{top:25px;right:0;z-index:5}
 .copy-id,.link-riot-id{display:inline-flex;align-items:center;justify-content:center;margin-top:9px;min-height:27px;padding:0 9px;border:1px solid #56f5ec55;border-radius:2px;background:#56f5ec0a;color:#8ffaf0;font:700 8px var(--font);letter-spacing:.65px;cursor:pointer;white-space:nowrap}
 .copy-id:hover,.link-riot-id:hover{border-color:#56f5ecaa;background:#56f5ec18;box-shadow:0 0 12px #56f5ec1c}
@@ -31,6 +34,8 @@
 .account-card .rank-progress-label small{font-size:8px}
 .account-card .rank-progress-track{height:6px}
 .account-card .card-footer{margin-top:12px}
-@media(max-width:430px){.account-card .card-top{grid-template-columns:minmax(0,1fr) 18px 60px;gap:7px}.profile-icon{width:58px;height:58px}.account-card .account-name{font-size:19px}.account-card .account-tag{font-size:14px}.account-card .rank-emblem-image{width:54px;height:54px}.account-card .rank-text b{font-size:18px}}
+@media(max-width:430px){.account-card .card-top{grid-template-columns:minmax(0,1fr) 18px 60px;gap:7px}.profile-icon-wrap{width:58px;height:58px}.profile-icon{width:58px;height:58px}.account-card .account-name{font-size:19px}.account-card .account-tag{font-size:14px}.account-card .rank-emblem-image{width:54px;height:54px}.account-card .rank-text b{font-size:18px}}
 
 .account-card .card-top.no-profile-icon{grid-template-columns:minmax(0,1fr) 22px}.account-card .card-top.no-profile-icon .card-menu{grid-column:2}.account-card .card-menu,.account-card .card-menu:hover,.account-card .card-menu:focus-visible{background:transparent!important;border:0!important;box-shadow:none!important;outline-offset:2px}.rank-filter[data-tier="ALL"] .rank-filter-all{flex:1;color:#a8b7cc;font-weight:600;letter-spacing:.2px}.rank-filter[data-tier="ALL"].selected .rank-filter-all{color:var(--cyan)}
+.rank-filter-unranked{flex:0 0 22px;color:#8993a5;text-align:center;font-size:16px;font-weight:600}
+.sidebar .rank-filter .rank-filter-unranked{display:block}
