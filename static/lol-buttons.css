@@ -218,8 +218,8 @@ button:disabled {
 .account-card .card-actions .account-action[data-copy-password] svg { transform: translateY(1px); }
 
 .account-card .card-actions .account-action svg {
-  width: 21px;
-  height: 21px;
+  width: 18px;
+  height: 18px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.8;
