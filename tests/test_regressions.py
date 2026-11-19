@@ -305,6 +305,9 @@ class UpdaterRegressionTests(unittest.TestCase):
             archive.writestr("Rift Vault/Rift Vault.exe", b"exe")
             archive.writestr("Rift Vault/_internal/static/index.html", b"app")
         archive_bytes = archive_buffer.getvalue()
+        current_version_parts = updater.CURRENT_VERSION.rsplit(".", 1)
+        latest_version = f"{current_version_parts[0]}.{int(current_version_parts[1]) + 1}"
+        latest_tag = f"v{latest_version}"
         requested_urls: list[str] = []
         client_options: dict = {}
 
@@ -346,7 +349,7 @@ class UpdaterRegressionTests(unittest.TestCase):
             def get(self, url):
                 requested_urls.append(url)
                 return Response({
-                    "tag_name": "v0.2.40",
+                    "tag_name": latest_tag,
                     "assets": [{
                         "name": "LoLAccounts-windows-x64.zip",
                         "size": len(archive_bytes),
@@ -375,7 +378,7 @@ class UpdaterRegressionTests(unittest.TestCase):
         self.assertEqual(requested_urls[0], updater.API)
         self.assertEqual(requested_urls[1], "https://example.test/latest.zip")
         self.assertEqual(result["state"], "ready")
-        self.assertEqual(result["latest_version"], "v0.2.40")
+        self.assertEqual(result["latest_version"], latest_tag)
         self.assertEqual(Path(result["payload"]).name, "Rift Vault")
         self.assertIsInstance(client_options["verify"], ssl.SSLContext)
         self.assertTrue(client_options["verify"].check_hostname)

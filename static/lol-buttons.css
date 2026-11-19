@@ -196,27 +196,28 @@ button:disabled {
   position: relative;
   display: grid;
   place-items: center;
-  flex: 0 0 36px;
-  width: 36px;
-  min-width: 0;
-  height: 36px;
-  min-height: 36px;
+  flex: 0 0 28px;
+  width: 28px;
+  min-width: 28px;
+  height: 34px;
+  min-height: 34px;
   padding: 0;
-  border: 1px solid rgba(var(--action-rgb), .6) !important;
+  border: 0 !important;
   border-image: none !important;
-  background: rgba(var(--action-rgb), .09);
+  background: transparent !important;
   color: var(--action-color);
-  box-shadow: 0 0 10px rgba(var(--action-rgb), .15);
+  box-shadow: none !important;
+  text-shadow: 0 0 9px rgba(var(--action-rgb), .55);
   cursor: pointer;
   overflow: visible;
+  transition: color 150ms ease, filter 150ms ease, transform 150ms cubic-bezier(.2,.8,.2,1), text-shadow 150ms ease;
 }
 
 .account-card .card-actions .account-action[data-copy-password] { --action-color: #72f5a3; --action-rgb: 114, 245, 163; }
-.account-card .card-actions .account-action[data-login] { --action-color: #69b8ff; --action-rgb: 105, 184, 255; }
 
 .account-card .card-actions .account-action svg {
-  width: 19px;
-  height: 19px;
+  width: 21px;
+  height: 21px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.8;
@@ -226,10 +227,17 @@ button:disabled {
 
 .account-card .card-actions .account-action:hover,
 .account-card .card-actions .account-action:focus-visible {
-  background: rgba(var(--action-rgb), .18);
-  color: #f0ffff;
-  box-shadow: 0 0 15px rgba(var(--action-rgb), .42);
-  transform: translateY(-1px);
+  color: var(--action-color);
+  filter: brightness(1.22);
+  text-shadow: 0 0 13px rgba(var(--action-rgb), .9);
+  transform: scale(1.1);
+}
+
+.account-card .card-actions .account-action:active {
+  filter: brightness(1.45);
+  text-shadow: 0 0 17px rgba(var(--action-rgb), 1);
+  transform: scale(.86);
+  transition-duration: 80ms;
 }
 
 .account-action .action-tooltip {
