@@ -190,6 +190,72 @@ button:disabled {
   background: rgba(255,130,152,.05);
 }
 
+.account-card .card-actions .account-action {
+  --action-color: #56f5ec;
+  --action-rgb: 86, 245, 236;
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 0 0 36px;
+  width: 36px;
+  min-width: 0;
+  height: 36px;
+  min-height: 36px;
+  padding: 0;
+  border: 1px solid rgba(var(--action-rgb), .6) !important;
+  border-image: none !important;
+  background: rgba(var(--action-rgb), .09);
+  color: var(--action-color);
+  box-shadow: 0 0 10px rgba(var(--action-rgb), .15);
+  cursor: pointer;
+  overflow: visible;
+}
+
+.account-card .card-actions .account-action[data-copy-password] { --action-color: #72f5a3; --action-rgb: 114, 245, 163; }
+.account-card .card-actions .account-action[data-login] { --action-color: #69b8ff; --action-rgb: 105, 184, 255; }
+
+.account-card .card-actions .account-action svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.account-card .card-actions .account-action:hover,
+.account-card .card-actions .account-action:focus-visible {
+  background: rgba(var(--action-rgb), .18);
+  color: #f0ffff;
+  box-shadow: 0 0 15px rgba(var(--action-rgb), .42);
+  transform: translateY(-1px);
+}
+
+.account-action .action-tooltip {
+  position: absolute;
+  right: -7px;
+  bottom: calc(100% + 8px);
+  z-index: 8;
+  padding: 6px 8px;
+  border: 1px solid rgba(var(--action-rgb), .45);
+  background: #101827;
+  color: #e8f4ff;
+  font: 500 9px var(--font);
+  letter-spacing: 0;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(3px);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.account-action:hover .action-tooltip,
+.account-action:focus-visible .action-tooltip {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .account-menu button:hover .account-menu-icon,
 .account-menu button:focus-visible .account-menu-icon {
   transform: scale(1.06);
