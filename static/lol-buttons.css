@@ -215,11 +215,11 @@ button:disabled {
 
 .account-card .card-actions .account-action[data-copy-password] { --action-color: #72f5a3; --action-rgb: 114, 245, 163; }
 
-.account-card .card-actions .account-action[data-copy-password] svg { transform: translateY(1px); }
+.account-card .card-actions .account-action[data-copy-password] svg { transform: translateY(3px); }
 
 .account-card .card-actions .account-action svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.8;
