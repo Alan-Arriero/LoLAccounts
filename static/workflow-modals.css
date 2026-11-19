@@ -302,3 +302,96 @@
     flex: 1 1 100%;
   }
 }
+
+  /* Riot ID forms use a clearer two-part identity treatment than generic fields. */
+  .form-callout {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin: 0 0 19px;
+    padding: 11px 12px;
+    border: 1px solid rgba(237, 88, 255, .28);
+    border-left: 2px solid #ed58ff;
+    background: linear-gradient(100deg, rgba(237, 88, 255, .12), rgba(86, 245, 236, .04));
+    color: #b7c8dc;
+    font-size: 9px;
+    line-height: 1.55;
+    box-shadow: inset 0 0 20px rgba(237, 88, 255, .04), 0 0 18px rgba(237, 88, 255, .06);
+  }
+
+  .form-callout-icon {
+    flex: 0 0 auto;
+    color: #ff72ef;
+    font-size: 15px;
+    line-height: 1;
+    text-shadow: 0 0 12px #ed58ff;
+  }
+
+  .form-callout b {
+    color: #f0c8ff;
+    font-weight: 700;
+  }
+
+  #account-modal .riot-fields,
+  #riot-id-modal .riot-fields {
+    padding: 13px;
+    border: 1px solid rgba(86, 245, 236, .2);
+    background: linear-gradient(135deg, rgba(86, 245, 236, .06), rgba(14, 19, 33, .45));
+    box-shadow: inset 0 0 24px rgba(86, 245, 236, .035);
+  }
+
+  #account-modal .riot-fields input,
+  #riot-id-modal .riot-fields .text-field {
+    height: 46px;
+    border-color: rgba(86, 245, 236, .28);
+    background: rgba(4, 9, 18, .8);
+  }
+
+  #account-modal .riot-fields input:focus,
+  #riot-id-modal .riot-fields .text-field:focus {
+    border-color: #56f5ec;
+    box-shadow: 0 0 0 2px rgba(86, 245, 236, .12), 0 0 18px rgba(86, 245, 236, .16);
+  }
+
+  .riot-fields-edit {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 18px minmax(94px, .42fr);
+    align-items: end;
+    gap: 9px;
+  }
+
+  .riot-part .field-label {
+    margin-top: 0;
+  }
+
+  .riot-part .text-field {
+    display: block;
+    width: 100%;
+  }
+
+  #account-modal .full-button,
+  #riot-id-modal .full-button {
+    min-height: 46px;
+    margin-top: 13px;
+    border-color: #9ffff8;
+    background: linear-gradient(105deg, #56f5ec, #6ea8ff 55%, #ed58ff);
+    color: #07101a;
+    box-shadow: 0 0 22px rgba(86, 245, 236, .2), 0 0 28px rgba(237, 88, 255, .12);
+    text-shadow: none;
+  }
+
+  #account-modal .full-button:hover,
+  #riot-id-modal .full-button:hover {
+    filter: brightness(1.16) saturate(1.15);
+    box-shadow: 0 0 30px rgba(86, 245, 236, .32), 0 0 35px rgba(237, 88, 255, .2);
+  }
+
+  @media (max-width: 470px) {
+    .riot-fields-edit {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .riot-fields-edit > .hash {
+      display: none;
+    }
+  }
