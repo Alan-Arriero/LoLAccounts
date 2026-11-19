@@ -69,24 +69,26 @@ button:disabled {
 }
 
 .login-btn {
-  border: 1px solid transparent;
-  border-image: var(--client-cyan-border) 1;
-  background: #1e2328;
-  color: #a3c7c7;
+  border: 2px solid transparent;
+  border-image: var(--client-gold-border) 1;
+  background: linear-gradient(#5a401f, #332717);
+  color: #ead8a5;
   box-shadow: 0 0 0 1px #010a13, inset 0 0 0 1px #010a13;
+  text-shadow: 0 1px 2px #000a;
 }
 
 .login-btn:hover:not(:disabled),
 .login-btn:focus-visible:not(:disabled) {
-  border-image: linear-gradient(to top, #3097c6, #0ecaba 50%, #cdfafa) 1;
-  background: linear-gradient(0deg, #005a8255, #1e2328);
-  color: #cdfafa;
-  box-shadow: 0 0 0 1px #010a13, inset 0 0 0 1px #010a13, 0 0 12px #08b1b233;
+  border-image: var(--client-gold-hover) 1;
+  background: linear-gradient(#604522, #846745);
+  color: var(--client-white-text);
+  box-shadow: 0 0 0 1px #010a13, inset 0 0 0 1px #010a13, 0 0 14px #d4b66f20;
 }
 
 .login-btn:active:not(:disabled) {
-  border-image: linear-gradient(#064360, #087b87) 1;
-  color: #78b8bd;
+  border-image: var(--client-gold-pressed) 1;
+  background: linear-gradient(#332717, #201b14);
+  color: #a99870;
   transform: scale(.96);
 }
 
