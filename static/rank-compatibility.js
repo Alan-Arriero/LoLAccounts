@@ -49,5 +49,34 @@
     return false;
   }
 
-  return Object.freeze({ tiers: Object.freeze(tiers), canPlayWith });
+  function rankDivisionStrength(rank) {
+    return { IV: 0, III: 1, II: 2, I: 3 }[String(rank || '').toUpperCase()] ?? -1;
+  }
+
+  function rankScore(account) {
+    if (!account) return -1;
+    const tier = tiers.includes(account.tier) ? account.tier : 'UNRANKED';
+    const tierIndex = tiers.indexOf(tier);
+    if (tierIndex < 0) return -1;
+    if (tierIndex <= 6) return tierIndex * 4 + rankDivisionStrength(account.rank);
+    return tierIndex * 4;
+  }
+
+  function compareRankedAccounts(a, b, direction) {
+    const aScore = rankScore(a);
+    const bScore = rankScore(b);
+    if (aScore !== bScore) return direction === 'asc' ? aScore - bScore : bScore - aScore;
+
+    const aLp = Number.isFinite(Number(a?.league_points)) ? Number(a.league_points) : 0;
+    const bLp = Number.isFinite(Number(b?.league_points)) ? Number(b.league_points) : 0;
+    if (aLp !== bLp) return direction === 'asc' ? aLp - bLp : bLp - aLp;
+    return String(a?.game_name || '').localeCompare(String(b?.game_name || ''));
+  }
+
+  return Object.freeze({
+    tiers: Object.freeze(tiers),
+    canPlayWith,
+    rankScore,
+    compareRankedAccounts,
+  });
 });

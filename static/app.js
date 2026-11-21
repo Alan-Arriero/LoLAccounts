@@ -84,13 +84,7 @@ function render(){
   $('#heading-count').textContent='('+String(all.length).padStart(2,'0')+')';
   renderFilters();
   let list=all.filter(a=>(state.tier==='ALL'||tier(a)===state.tier)&&(!state.playWithTier||RankCompatibility.canPlayWith(a,state.playWithTier,state.playWithQueue))&&((a.game_name||'')+' '+(a.tag_line||'')+' '+(a.label||'')).toLowerCase().includes(state.query));
-  if(state.sort==='rank'||state.sort==='rank-asc')list.sort((a,b)=>{
-    const aTier=ti(a),bTier=ti(b);
-    if(aTier<0||bTier<0)return aTier<0?(bTier<0?(a.game_name||'').localeCompare(b.game_name||''):1):-1;
-    const direction=state.sort==='rank-asc'?1:-1;
-    const aDivision=divisions.indexOf(String(a.rank||'').toUpperCase()),bDivision=divisions.indexOf(String(b.rank||'').toUpperCase());
-    return direction*(aTier-bTier||((aDivision<0?0:divisions.length-aDivision)-(bDivision<0?0:divisions.length-bDivision))||((Number(a.league_points)||0)-(Number(b.league_points)||0)))||(a.game_name||'').localeCompare(b.game_name||'');
-  });
+  if(state.sort==='rank'||state.sort==='rank-asc')list.sort((a,b)=>RankCompatibility.compareRankedAccounts(a,b,state.sort==='rank-asc'?'asc':'desc'));
   else if(state.sort==='winrate')list.sort((a,b)=>{const x=(a.wins||0)+(a.losses||0),y=(b.wins||0)+(b.losses||0);return(y?(b.wins||0)/y:0)-(x?(a.wins||0)/x:0)});
   else list.sort((a,b)=>(a.game_name||'').localeCompare(b.game_name||''));
   $('#accounts').innerHTML=list.map(card).join('');
