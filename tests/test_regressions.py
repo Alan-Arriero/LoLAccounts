@@ -44,6 +44,35 @@ class AccountRegressionTests(unittest.IsolatedAsyncioTestCase):
                 (2026, month, 18, 13, 0, 0),
             )
 
+    def test_rank_refresh_start_catches_up_after_a_missed_hour(self) -> None:
+        spain = ZoneInfo("Europe/Madrid")
+        last_success = datetime(2026, 11, 19, 12, 0, 15, tzinfo=spain).timestamp()
+        before_deadline = datetime(2026, 11, 19, 12, 59, tzinfo=spain).timestamp()
+        after_deadline = datetime(2026, 11, 19, 13, 5, tzinfo=spain).timestamp()
+
+        self.assertEqual(
+            app._rank_refresh_start_deadline(last_success, before_deadline),
+            datetime(2026, 11, 19, 13, 0, tzinfo=spain).timestamp(),
+        )
+        self.assertEqual(
+            app._rank_refresh_start_deadline(last_success, after_deadline),
+            after_deadline,
+        )
+        self.assertEqual(app._rank_refresh_start_deadline(None, before_deadline), before_deadline)
+
+    def test_rank_refresh_success_timestamp_persists(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            database = Path(temporary) / "accounts.db"
+            timestamp = 1_800_000_000.0
+            with (
+                patch.object(app, "DB_PATH", database),
+                patch.object(app, "connect", side_effect=lambda: closing_connection(database)),
+            ):
+                app.init_db()
+                self.assertIsNone(app._read_rank_refresh_last_success())
+                app._write_rank_refresh_last_success(timestamp)
+                self.assertEqual(app._read_rank_refresh_last_success(), timestamp)
+
     async def test_logo_endpoint_serves_the_root_logo(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             logo = Path(temporary) / "image.png"

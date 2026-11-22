@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sqlite3
 import sys
@@ -39,6 +40,7 @@ _ddragon_version: str | None = None
 _login_status_lock = threading.Lock()
 _login_statuses: dict[int, dict[str, str]] = {}
 _spain_timezone = ZoneInfo("Europe/Madrid")
+_logger = logging.getLogger(__name__)
 
 
 def _next_rank_refresh_deadline(now: float | None = None) -> float:
@@ -53,6 +55,8 @@ _rank_refresh_thread: threading.Thread | None = None
 _rank_refresh_deadline = _next_rank_refresh_deadline()
 _rank_refreshing = False
 _rank_refresh_last_run: float | None = None
+_rank_refresh_last_error: str | None = None
+_RANK_REFRESH_SETTING = "rank_refresh_last_success"
 
 
 def load_riot_api_key() -> str:
@@ -212,6 +216,7 @@ async def refresh_status():
             "refreshing": _rank_refreshing,
             "next_refresh_seconds": 0 if _rank_refreshing else max(0, int(_rank_refresh_deadline - time.time())),
             "last_refresh": _rank_refresh_last_run,
+            "failed": bool(_rank_refresh_last_error),
         }
 
 
@@ -235,18 +240,49 @@ async def _refresh_rank(account_id: int, puuid: str) -> None:
             solo.get("leaguePoints", 0), solo.get("wins", 0), solo.get("losses", 0), account_id))
 
 
-async def _refresh_all_linked_accounts() -> None:
+async def _refresh_all_linked_accounts() -> bool:
     with connect() as db:
         rows = db.execute("SELECT id,puuid FROM accounts WHERE puuid IS NOT NULL AND puuid!=''").fetchall()
+    succeeded = True
     for row in rows:
         try:
             await _refresh_rank(int(row["id"]), str(row["puuid"]))
-        except HTTPException:
-            continue
+        except HTTPException as exc:
+            succeeded = False
+            _logger.warning("Could not refresh rank for account %s: %s", row["id"], exc.detail)
+    return succeeded
+
+
+def _read_rank_refresh_last_success() -> float | None:
+    with connect() as db:
+        row = db.execute("SELECT value FROM app_settings WHERE key=?", (_RANK_REFRESH_SETTING,)).fetchone()
+    if not row:
+        return None
+    try:
+        return float(row["value"])
+    except (TypeError, ValueError):
+        _logger.warning("Stored rank refresh timestamp is invalid; refreshing ranks on startup.")
+        return None
+
+
+def _write_rank_refresh_last_success(timestamp: float) -> None:
+    with connect() as db:
+        db.execute(
+            "INSERT INTO app_settings(key,value) VALUES(?,?) "
+            "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            (_RANK_REFRESH_SETTING, str(timestamp)),
+        )
+
+
+def _rank_refresh_start_deadline(last_success: float | None, now: float | None = None) -> float:
+    current_time = time.time() if now is None else now
+    if last_success is None or _next_rank_refresh_deadline(last_success) <= current_time:
+        return current_time
+    return _next_rank_refresh_deadline(current_time)
 
 
 def _rank_refresh_worker() -> None:
-    global _rank_refresh_deadline, _rank_refreshing, _rank_refresh_last_run
+    global _rank_refresh_deadline, _rank_refreshing, _rank_refresh_last_run, _rank_refresh_last_error
     while not _rank_refresh_stop.is_set():
         remaining = max(0, _rank_refresh_deadline - time.time())
         if _rank_refresh_stop.wait(remaining):
@@ -255,14 +291,23 @@ def _rank_refresh_worker() -> None:
             if time.time() < _rank_refresh_deadline:
                 continue
             _rank_refreshing = True
+        refresh_succeeded = False
+        refresh_error = None
         try:
-            asyncio.run(_refresh_all_linked_accounts())
-        except Exception:
-            pass
+            refresh_succeeded = asyncio.run(_refresh_all_linked_accounts())
+            if refresh_succeeded:
+                _write_rank_refresh_last_success(time.time())
+            else:
+                refresh_error = "No se pudieron actualizar todos los rangos."
+        except Exception as exc:
+            refresh_error = str(exc)
+            _logger.exception("Scheduled rank refresh failed.")
         finally:
+            completed_at = time.time()
             with _rank_refresh_lock:
                 _rank_refreshing = False
-                _rank_refresh_last_run = time.time()
+                _rank_refresh_last_run = completed_at
+                _rank_refresh_last_error = refresh_error
                 _rank_refresh_deadline = _next_rank_refresh_deadline()
 
 
@@ -273,12 +318,17 @@ def _needs_flex_rank_backfill() -> bool:
 
 
 def _start_rank_refresh_worker() -> None:
-    global _rank_refresh_deadline, _rank_refresh_thread
+    global _rank_refresh_deadline, _rank_refresh_thread, _rank_refresh_last_run
     if _rank_refresh_thread and _rank_refresh_thread.is_alive():
         return
     _rank_refresh_stop.clear()
+    last_success = _read_rank_refresh_last_success()
     with _rank_refresh_lock:
-        _rank_refresh_deadline = time.time() if _needs_flex_rank_backfill() else _next_rank_refresh_deadline()
+        _rank_refresh_last_run = last_success
+        _rank_refresh_deadline = (
+            time.time() if _needs_flex_rank_backfill()
+            else _rank_refresh_start_deadline(last_success)
+        )
     _rank_refresh_thread = threading.Thread(
         target=_rank_refresh_worker, name="hourly-rank-refresh", daemon=True
     )
